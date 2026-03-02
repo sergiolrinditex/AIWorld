@@ -1,11 +1,16 @@
 # ===========================================
-# Python
+# PYTHON
 # ===========================================
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
+*.pyd
+
+# ===========================================
+# BUILD & DISTRIBUCIÓN
+# ===========================================
 build/
 develop-eggs/
 dist/
@@ -18,61 +23,226 @@ parts/
 sdist/
 var/
 wheels/
+share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
+pip-log.txt
+pip-delete-this-directory.txt
 
 # ===========================================
-# Virtual environments
+# ENTORNOS VIRTUALES
 # ===========================================
-.env
 .venv
-env/
 venv/
+env/
 ENV/
+env.bak/
+venv.bak/
+.python-version
+.hatch/
 
 # ===========================================
-# Environment variables (IMPORTANTE: no commitear credenciales)
+# VARIABLES DE ENTORNO Y CREDENCIALES
+# ⚠️  NUNCA commitear credenciales o API keys
 # ===========================================
 .env
 .env.local
 .env.*.local
+.env.development
+.env.test
+.env.production
+.env.staging
+*.pem
+*.key
+*.crt
+*.p12
+secrets/
+credentials/
 
 # ===========================================
-# IDE
+# IDEs Y EDITORES
 # ===========================================
-.idea/
+# VS Code
 .vscode/
+*.code-workspace
+
+# JetBrains (PyCharm, IntelliJ...)
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Vim / Neovim
 *.swp
 *.swo
 *~
+.netrwhist
+
+# Emacs
+*#
+.#*
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Spyder
+.spyderproject.cfg
+.spyproject
+
+# Rope
+.ropeproject
 
 # ===========================================
-# Testing
+# TESTING
 # ===========================================
 .coverage
+.coverage.*
+coverage.xml
 htmlcov/
 .tox/
 .nox/
 .pytest_cache/
-.mypy_cache/
+pytest_results/
+test-results/
+junit.xml
+*.coveragerc
 
 # ===========================================
-# Data & Databases
+# LINTERS, FORMATTERS Y TYPE CHECKERS
 # ===========================================
-data/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+.pytype/
+.pyre/
+
+# ===========================================
+# PRE-COMMIT
+# ===========================================
+.pre-commit-cache/
+
+# ===========================================
+# DOCUMENTACIÓN (MkDocs)
+# ===========================================
+site/
+docs/_build/
+.docusaurus/
+
+# ===========================================
+# DOCKER
+# ===========================================
+# No ignorar Dockerfiles ni docker-compose.yml (son parte del proyecto)
+# Ignorar overrides locales y volúmenes
+docker-compose.override.yml
+docker-compose.local.yml
+.docker/
+volumes/
+
+# ===========================================
+# BASES DE DATOS Y DATOS
+# ===========================================
 *.db
 *.sqlite
 *.sqlite3
+data/
+*.csv
+*.parquet
+*.feather
+*.pkl
+*.pickle
+*.h5
+*.hdf5
 
 # ===========================================
-# Logs
+# LOGS Y CACHÉ
 # ===========================================
 *.log
 logs/
+*.log.*
+pip-log.txt
+celerybeat-schedule
+celerybeat.pid
 
 # ===========================================
-# OS
+# JUPYTER NOTEBOOKS
 # ===========================================
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+profile_default/
+ipython_config.py
+*.ipynb
+
+# ===========================================
+# SISTEMA OPERATIVO
+# ===========================================
+# macOS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+.AppleDouble
+.LSOverride
+Icon
+
+# Windows
 Thumbs.db
+Thumbs.db:encdata
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+*~
+
+# ===========================================
+# NODE / FRONTEND (por si se añade frontend)
+# ===========================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.npm
+.yarn/
+dist/
+.next/
+.nuxt/
+.output/
+.svelte-kit/
+
+# ===========================================
+# MODELOS DE IA Y ARTEFACTOS PESADOS
+# ===========================================
+*.bin
+*.gguf
+*.safetensors
+*.pt
+*.pth
+models/
+checkpoints/
+weights/
+
+# ===========================================
+# MISCELÁNEA
+# ===========================================
+# Archivos temporales
+*.tmp
+*.temp
+*.bak
+*.orig
+*.rej
+
+# Profiling
+*.prof
+*.lprof
+
+# Benchmarks
+benchmarks/results/
