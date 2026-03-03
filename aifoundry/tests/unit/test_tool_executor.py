@@ -5,7 +5,7 @@ Tests unitarios del módulo de resolución de tools.
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from aifoundry.app.core.agents.scraper.tool_executor import (
+from aifoundry.app.core.aiagents.scraper.tool_executor import (
     ToolResolver,
     _tool_error_handler,
     _is_no_data_error,
@@ -74,8 +74,8 @@ class TestToolResolver:
         assert len(tools) == 1
         assert tools[0].name == "custom_tool"
 
-    @patch("aifoundry.app.core.agents.scraper.tool_executor.get_mcp_configs")
-    @patch("aifoundry.app.core.agents.scraper.tool_executor.MultiServerMCPClient")
+    @patch("aifoundry.app.core.aiagents.scraper.tool_executor.get_mcp_configs")
+    @patch("aifoundry.app.core.aiagents.scraper.tool_executor.MultiServerMCPClient")
     async def test_resolve_tools_with_mcp(self, mock_mcp_cls, mock_get_configs):
         """resolve_tools() carga tools locales + MCP."""
         mock_get_configs.return_value = {
@@ -109,8 +109,8 @@ class TestToolResolver:
         assert "simple_scrape_url" in tool_names
         assert resolver.mcp_client is None
 
-    @patch("aifoundry.app.core.agents.scraper.tool_executor.get_mcp_configs")
-    @patch("aifoundry.app.core.agents.scraper.tool_executor.MultiServerMCPClient")
+    @patch("aifoundry.app.core.aiagents.scraper.tool_executor.get_mcp_configs")
+    @patch("aifoundry.app.core.aiagents.scraper.tool_executor.MultiServerMCPClient")
     async def test_resolve_tools_mcp_failure_graceful(self, mock_mcp_cls, mock_get_configs):
         """Si MCP falla, retorna solo tools locales."""
         mock_get_configs.return_value = {"brave": {"url": "http://fake"}}
@@ -123,8 +123,8 @@ class TestToolResolver:
         tool_names = [t.name for t in tools]
         assert "simple_scrape_url" in tool_names
 
-    @patch("aifoundry.app.core.agents.scraper.tool_executor.get_mcp_configs")
-    @patch("aifoundry.app.core.agents.scraper.tool_executor.MultiServerMCPClient")
+    @patch("aifoundry.app.core.aiagents.scraper.tool_executor.get_mcp_configs")
+    @patch("aifoundry.app.core.aiagents.scraper.tool_executor.MultiServerMCPClient")
     async def test_cleanup_closes_mcp(self, mock_mcp_cls, mock_get_configs):
         """cleanup() cierra el MCP client."""
         mock_get_configs.return_value = {"brave": {"url": "http://fake"}}

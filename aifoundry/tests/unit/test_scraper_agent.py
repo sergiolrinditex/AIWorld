@@ -13,7 +13,7 @@ from typing import Any
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
 
-from aifoundry.app.core.agents.scraper.agent import (
+from aifoundry.app.core.aiagents.scraper.agent import (
     ScraperAgent,
     _is_recoverable_error,
     _is_no_data_error,
@@ -103,8 +103,8 @@ def _get_common_patches(mock_llm_instance=None):
     """Retorna dict de patches comunes para todos los tests."""
     llm = mock_llm_instance or MagicMock()
     return {
-        "aifoundry.app.core.agents.scraper.agent.get_llm": MagicMock(return_value=llm),
-        "aifoundry.app.core.agents.scraper.agent.get_mcp_configs": MagicMock(
+        "aifoundry.app.core.aiagents.scraper.agent.get_llm": MagicMock(return_value=llm),
+        "aifoundry.app.core.aiagents.scraper.agent.get_mcp_configs": MagicMock(
             return_value={
                 "brave": {"transport": "streamable_http", "url": "http://fake:8082/mcp"},
                 "playwright": {"transport": "streamable_http", "url": "http://fake:8931/mcp"},
@@ -165,7 +165,7 @@ class TestErrorHelpers:
 class TestScraperAgentInit:
     """Tests de inicialización del ScraperAgent."""
 
-    @patch("aifoundry.app.core.agents.scraper.agent.get_llm")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.get_llm")
     def test_constructor_defaults(self, mock_get_llm):
         """El constructor crea el agente con valores por defecto."""
         mock_get_llm.return_value = MagicMock()
@@ -180,7 +180,7 @@ class TestScraperAgentInit:
         assert agent._all_tools is None
         assert agent._checkpointer is not None
 
-    @patch("aifoundry.app.core.agents.scraper.agent.get_llm")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.get_llm")
     def test_constructor_with_response_model(self, mock_get_llm):
         """Constructor con response_model activa structured output nativo."""
         mock_get_llm.return_value = MagicMock()
@@ -189,14 +189,14 @@ class TestScraperAgentInit:
         assert agent._response_model is FakeStructuredResponse
         assert agent._structured_output is False  # No legacy
 
-    @patch("aifoundry.app.core.agents.scraper.agent.get_llm")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.get_llm")
     def test_constructor_structured_output_deprecation(self, mock_get_llm):
         """structured_output=True sin response_model emite DeprecationWarning."""
         mock_get_llm.return_value = MagicMock()
         with pytest.warns(DeprecationWarning, match="structured_output=True está DEPRECATED"):
             ScraperAgent(structured_output=True)
 
-    @patch("aifoundry.app.core.agents.scraper.agent.get_llm")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.get_llm")
     def test_constructor_disable_simple_scrape(self, mock_get_llm):
         """disable_simple_scrape filtra la tool simple_scrape_url."""
         mock_get_llm.return_value = MagicMock()
@@ -207,7 +207,7 @@ class TestScraperAgentInit:
         tool_names = [t.name for t in local_tools]
         assert "simple_scrape_url" not in tool_names
 
-    @patch("aifoundry.app.core.agents.scraper.agent.get_llm")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.get_llm")
     def test_constructor_no_memory(self, mock_get_llm):
         """use_memory=False no crea checkpointer."""
         mock_get_llm.return_value = MagicMock()
@@ -222,10 +222,10 @@ class TestScraperAgentInit:
 class TestScraperAgentLifecycle:
     """Tests del ciclo de vida: initialize, aenter, aexit."""
 
-    @patch("aifoundry.app.core.agents.scraper.agent.create_agent")
-    @patch("aifoundry.app.core.agents.scraper.tool_executor.MultiServerMCPClient")
-    @patch("aifoundry.app.core.agents.scraper.tool_executor.get_mcp_configs")
-    @patch("aifoundry.app.core.agents.scraper.agent.get_llm")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.create_agent")
+    @patch("aifoundry.app.core.aiagents.scraper.tool_executor.MultiServerMCPClient")
+    @patch("aifoundry.app.core.aiagents.scraper.tool_executor.get_mcp_configs")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.get_llm")
     async def test_aenter_initializes_agent(
         self, mock_get_llm, mock_get_mcp_configs, mock_mcp_client_cls, mock_create_agent
     ):
@@ -259,9 +259,9 @@ class TestScraperAgentLifecycle:
             call_kwargs = mock_create_agent.call_args
             assert "model" in call_kwargs.kwargs or len(call_kwargs.args) > 0
 
-    @patch("aifoundry.app.core.agents.scraper.agent.create_agent")
-    @patch("aifoundry.app.core.agents.scraper.tool_executor.get_mcp_configs")
-    @patch("aifoundry.app.core.agents.scraper.agent.get_llm")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.create_agent")
+    @patch("aifoundry.app.core.aiagents.scraper.tool_executor.get_mcp_configs")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.get_llm")
     async def test_aenter_without_mcp(
         self, mock_get_llm, mock_get_mcp_configs, mock_create_agent
     ):
@@ -277,10 +277,10 @@ class TestScraperAgentLifecycle:
             # No debería haber llamado a get_mcp_configs
             mock_get_mcp_configs.assert_not_called()
 
-    @patch("aifoundry.app.core.agents.scraper.agent.create_agent")
-    @patch("aifoundry.app.core.agents.scraper.tool_executor.MultiServerMCPClient")
-    @patch("aifoundry.app.core.agents.scraper.tool_executor.get_mcp_configs")
-    @patch("aifoundry.app.core.agents.scraper.agent.get_llm")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.create_agent")
+    @patch("aifoundry.app.core.aiagents.scraper.tool_executor.MultiServerMCPClient")
+    @patch("aifoundry.app.core.aiagents.scraper.tool_executor.get_mcp_configs")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.get_llm")
     async def test_aenter_mcp_failure_graceful(
         self, mock_get_llm, mock_get_mcp_configs, mock_mcp_client_cls, mock_create_agent
     ):
@@ -296,8 +296,8 @@ class TestScraperAgentLifecycle:
             tool_names = [t.name for t in agent._all_tools]
             assert "simple_scrape_url" in tool_names
 
-    @patch("aifoundry.app.core.agents.scraper.agent.create_agent")
-    @patch("aifoundry.app.core.agents.scraper.agent.get_llm")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.create_agent")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.get_llm")
     async def test_cleanup_resets_state(self, mock_get_llm, mock_create_agent):
         """cleanup() limpia agent, tools y MCP client."""
         mock_get_llm.return_value = MagicMock()
@@ -318,8 +318,8 @@ class TestScraperAgentLifecycle:
 class TestScraperAgentRun:
     """Tests de la ejecución principal del agente."""
 
-    @patch("aifoundry.app.core.agents.scraper.agent.create_agent")
-    @patch("aifoundry.app.core.agents.scraper.agent.get_llm")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.create_agent")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.get_llm")
     async def test_run_basic_success(
         self, mock_get_llm, mock_create_agent, basic_config, mock_agent_response
     ):
@@ -336,8 +336,8 @@ class TestScraperAgentRun:
         assert result["attempts"] == 1
         assert "thread_id" in result
 
-    @patch("aifoundry.app.core.agents.scraper.agent.create_agent")
-    @patch("aifoundry.app.core.agents.scraper.agent.get_llm")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.create_agent")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.get_llm")
     async def test_run_parses_urls(
         self, mock_get_llm, mock_create_agent, basic_config, mock_agent_response
     ):
@@ -353,8 +353,8 @@ class TestScraperAgentRun:
         assert "urls" in result
         assert "https://example.com/data" in result["urls"]
 
-    @patch("aifoundry.app.core.agents.scraper.agent.create_agent")
-    @patch("aifoundry.app.core.agents.scraper.agent.get_llm")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.create_agent")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.get_llm")
     async def test_run_with_native_structured_output(
         self,
         mock_get_llm,
@@ -378,8 +378,8 @@ class TestScraperAgentRun:
         assert isinstance(result["structured_response"], FakeStructuredResponse)
         assert result["structured_response"].provider == "TestProvider"
 
-    @patch("aifoundry.app.core.agents.scraper.agent.create_agent")
-    @patch("aifoundry.app.core.agents.scraper.agent.get_llm")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.create_agent")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.get_llm")
     async def test_run_native_structured_fallback_to_legacy(
         self, mock_get_llm, mock_create_agent, basic_config, mock_agent_response
     ):
@@ -410,8 +410,8 @@ class TestScraperAgentRun:
         # Verificar que se usó with_structured_output como fallback
         mock_llm.with_structured_output.assert_called_once_with(FakeStructuredResponse)
 
-    @patch("aifoundry.app.core.agents.scraper.agent.create_agent")
-    @patch("aifoundry.app.core.agents.scraper.agent.get_llm")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.create_agent")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.get_llm")
     async def test_run_legacy_structured_output(
         self, mock_get_llm, mock_create_agent, basic_config, mock_agent_response
     ):
@@ -440,8 +440,8 @@ class TestScraperAgentRun:
         assert result["status"] == "success"
         assert result["has_structured_output"] is True
 
-    @patch("aifoundry.app.core.agents.scraper.agent.create_agent")
-    @patch("aifoundry.app.core.agents.scraper.agent.get_llm")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.create_agent")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.get_llm")
     async def test_run_without_structured_output(
         self, mock_get_llm, mock_create_agent, basic_config, mock_agent_response
     ):
@@ -464,8 +464,8 @@ class TestScraperAgentRun:
 class TestScraperAgentRetry:
     """Tests de retry y manejo de errores."""
 
-    @patch("aifoundry.app.core.agents.scraper.agent.create_agent")
-    @patch("aifoundry.app.core.agents.scraper.agent.get_llm")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.create_agent")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.get_llm")
     async def test_retry_on_recoverable_error(
         self, mock_get_llm, mock_create_agent, basic_config
     ):
@@ -495,8 +495,8 @@ class TestScraperAgentRetry:
         assert result["status"] == "success"
         assert result["attempts"] == 2
 
-    @patch("aifoundry.app.core.agents.scraper.agent.create_agent")
-    @patch("aifoundry.app.core.agents.scraper.agent.get_llm")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.create_agent")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.get_llm")
     async def test_retry_on_exception_recoverable(
         self, mock_get_llm, mock_create_agent, basic_config
     ):
@@ -523,8 +523,8 @@ class TestScraperAgentRetry:
         assert result["status"] == "success"
         assert result["attempts"] == 2
 
-    @patch("aifoundry.app.core.agents.scraper.agent.create_agent")
-    @patch("aifoundry.app.core.agents.scraper.agent.get_llm")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.create_agent")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.get_llm")
     async def test_non_recoverable_exception_returns_error(
         self, mock_get_llm, mock_create_agent, basic_config
     ):
@@ -543,8 +543,8 @@ class TestScraperAgentRetry:
         assert result["status"] == "error"
         assert result["attempts"] == 1  # No reintentó
 
-    @patch("aifoundry.app.core.agents.scraper.agent.create_agent")
-    @patch("aifoundry.app.core.agents.scraper.agent.get_llm")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.create_agent")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.get_llm")
     async def test_all_retries_exhausted_output_error(
         self, mock_get_llm, mock_create_agent, basic_config
     ):
@@ -572,8 +572,8 @@ class TestScraperAgentRetry:
         assert "timeout" in result["output"]
         assert result["attempts"] == 2
 
-    @patch("aifoundry.app.core.agents.scraper.agent.create_agent")
-    @patch("aifoundry.app.core.agents.scraper.agent.get_llm")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.create_agent")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.get_llm")
     async def test_all_retries_exhausted_exception(
         self, mock_get_llm, mock_create_agent, basic_config
     ):
@@ -592,8 +592,8 @@ class TestScraperAgentRetry:
         assert result["status"] == "error"
         assert result["attempts"] == 2
 
-    @patch("aifoundry.app.core.agents.scraper.agent.create_agent")
-    @patch("aifoundry.app.core.agents.scraper.agent.get_llm")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.create_agent")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.get_llm")
     async def test_no_data_error_returns_partial(
         self, mock_get_llm, mock_create_agent, basic_config
     ):
@@ -620,8 +620,8 @@ class TestScraperAgentRetry:
 class TestScraperAgentMemory:
     """Tests de memoria conversacional."""
 
-    @patch("aifoundry.app.core.agents.scraper.agent.create_agent")
-    @patch("aifoundry.app.core.agents.scraper.agent.get_llm")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.create_agent")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.get_llm")
     async def test_memory_same_thread_id(
         self, mock_get_llm, mock_create_agent, basic_config
     ):
@@ -654,8 +654,8 @@ class TestScraperAgentMemory:
             config_arg = call.kwargs.get("config") or call.args[1]
             assert config_arg["configurable"]["thread_id"] == thread_id
 
-    @patch("aifoundry.app.core.agents.scraper.agent.create_agent")
-    @patch("aifoundry.app.core.agents.scraper.agent.get_llm")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.create_agent")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.get_llm")
     async def test_custom_thread_id_from_config(
         self, mock_get_llm, mock_create_agent, basic_config
     ):
@@ -673,8 +673,8 @@ class TestScraperAgentMemory:
 
         assert result["thread_id"] == "my-custom-thread"
 
-    @patch("aifoundry.app.core.agents.scraper.agent.create_agent")
-    @patch("aifoundry.app.core.agents.scraper.agent.get_llm")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.create_agent")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.get_llm")
     async def test_reset_memory(self, mock_get_llm, mock_create_agent):
         """reset_memory() genera nuevo thread_id y nuevo checkpointer."""
         mock_get_llm.return_value = MagicMock()
@@ -693,8 +693,8 @@ class TestScraperAgentMemory:
         # Agent se reinicializa en próximo run
         assert agent._agent is None
 
-    @patch("aifoundry.app.core.agents.scraper.agent.create_agent")
-    @patch("aifoundry.app.core.agents.scraper.agent.get_llm")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.create_agent")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.get_llm")
     async def test_set_thread_id(self, mock_get_llm, mock_create_agent):
         """Se puede establecer un thread_id específico."""
         mock_get_llm.return_value = MagicMock()
@@ -715,7 +715,7 @@ class TestScraperAgentMemory:
 class TestScraperAgentPrompt:
     """Tests de generación de system prompt."""
 
-    @patch("aifoundry.app.core.agents.scraper.agent.get_llm")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.get_llm")
     def test_get_system_prompt(self, mock_get_llm, basic_config):
         """get_system_prompt() genera prompt válido desde config."""
         mock_get_llm.return_value = MagicMock()
@@ -728,7 +728,7 @@ class TestScraperAgentPrompt:
         assert "test_product" in prompt
         assert "TestProvider" in prompt
 
-    @patch("aifoundry.app.core.agents.scraper.agent.get_llm")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.get_llm")
     def test_get_system_prompt_with_extraction(self, mock_get_llm, basic_config):
         """Prompt incluye extraction_prompt si está en config."""
         mock_get_llm.return_value = MagicMock()
@@ -748,7 +748,7 @@ class TestScraperAgentPrompt:
 class TestScraperAgentParsing:
     """Tests del parsing de output."""
 
-    @patch("aifoundry.app.core.agents.scraper.agent.get_llm")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.get_llm")
     def test_parse_output_extracts_urls(self, mock_get_llm):
         """parse_output() extrae URLs del texto."""
         mock_get_llm.return_value = MagicMock()
@@ -761,7 +761,7 @@ class TestScraperAgentParsing:
         assert "https://glassdoor.com/salary" in parsed["urls"]
         assert "https://indeed.com/jobs" in parsed["urls"]
 
-    @patch("aifoundry.app.core.agents.scraper.agent.get_llm")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.get_llm")
     def test_parse_output_detects_playwright(self, mock_get_llm):
         """parse_output() detecta uso de Playwright."""
         mock_get_llm.return_value = MagicMock()
@@ -772,7 +772,7 @@ class TestScraperAgentParsing:
 
         assert parsed.get("used_playwright") is True
 
-    @patch("aifoundry.app.core.agents.scraper.agent.get_llm")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.get_llm")
     def test_parse_output_empty(self, mock_get_llm):
         """parse_output() con texto sin datos retorna dict vacío."""
         mock_get_llm.return_value = MagicMock()
@@ -788,8 +788,8 @@ class TestScraperAgentParsing:
 class TestScraperAgentAutoInit:
     """Tests de auto-inicialización (sin context manager)."""
 
-    @patch("aifoundry.app.core.agents.scraper.agent.create_agent")
-    @patch("aifoundry.app.core.agents.scraper.agent.get_llm")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.create_agent")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.get_llm")
     async def test_run_auto_initializes(
         self, mock_get_llm, mock_create_agent, basic_config
     ):
@@ -809,8 +809,8 @@ class TestScraperAgentAutoInit:
 
         await agent.cleanup()
 
-    @patch("aifoundry.app.core.agents.scraper.agent.create_agent")
-    @patch("aifoundry.app.core.agents.scraper.agent.get_llm")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.create_agent")
+    @patch("aifoundry.app.core.aiagents.scraper.agent.get_llm")
     async def test_initialize_is_idempotent(
         self, mock_get_llm, mock_create_agent
     ):
@@ -838,7 +838,7 @@ class TestAgentCallbackHandler:
 
     def test_callback_handler_creation(self):
         """AgentCallbackHandler se crea correctamente."""
-        from aifoundry.app.core.agents.scraper.agent import AgentCallbackHandler
+        from aifoundry.app.core.aiagents.scraper.agent import AgentCallbackHandler
 
         handler = AgentCallbackHandler(agent_name="test")
         assert handler.agent_name == "test"
@@ -847,7 +847,7 @@ class TestAgentCallbackHandler:
 
     def test_callback_tool_to_step_mapping(self):
         """El mapeo de tools a pasos está definido."""
-        from aifoundry.app.core.agents.scraper.agent import AgentCallbackHandler
+        from aifoundry.app.core.aiagents.scraper.agent import AgentCallbackHandler
 
         handler = AgentCallbackHandler()
         assert "brave_web_search" in handler._TOOL_TO_STEP

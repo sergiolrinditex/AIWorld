@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 from pydantic import BaseModel, Field
 
-from aifoundry.app.core.agents.scraper.output_parser import OutputParser
+from aifoundry.app.core.aiagents.scraper.output_parser import OutputParser
 
 
 class FakeResponse(BaseModel):

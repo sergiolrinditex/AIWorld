@@ -20,8 +20,8 @@ from fastapi import APIRouter, HTTPException
 from pydantic import ValidationError
 
 from aifoundry.app.config import settings
-from aifoundry.app.core.agents.scraper.agent import ScraperAgent
-from aifoundry.app.core.agents.scraper.config_schema import AgentConfig
+from aifoundry.app.core.aiagents.scraper.agent import ScraperAgent
+from aifoundry.app.core.aiagents.scraper.config_schema import AgentConfig
 from aifoundry.app.schemas.agent_responses import get_response_schema
 from aifoundry.app.utils.country import get_country_info
 
@@ -61,7 +61,7 @@ def _discover_agents() -> Dict[str, Dict[str, Any]]:
     """
     Descubre agentes disponibles buscando config.json recursivamente.
 
-    Busca archivos config.json en cualquier subdirectorio de core/agents/.
+    Busca archivos config.json en cualquier subdirectorio de core/aiagents/.
     Usa el nombre del directorio padre del config.json como nombre del agente.
     Ignora directorios que empiezan con '_' o '__'.
     Valida cada config.json contra AgentConfig schema Pydantic.
@@ -213,7 +213,7 @@ async def list_agents():
     """
     Descubre y lista todos los agentes disponibles con su información básica.
 
-    Escanea los subdirectorios de `core/agents/` buscando config.json.
+    Escanea los subdirectorios de `core/aiagents/` buscando config.json.
     """
     agents = _discover_agents()
     agent_list: List[AgentInfo] = []

@@ -5,7 +5,7 @@ Tests unitarios del módulo de memoria.
 import pytest
 from unittest.mock import MagicMock, patch
 
-from aifoundry.app.core.agents.scraper.memory import (
+from aifoundry.app.core.aiagents.scraper.memory import (
     BaseMemoryManager,
     InMemoryManager,
     NullMemoryManager,

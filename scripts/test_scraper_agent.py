@@ -16,7 +16,7 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 
-from aifoundry.app.core.agents import ScraperAgent
+from aifoundry.app.core.aiagents import ScraperAgent
 
 
 async def main():

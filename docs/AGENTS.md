@@ -43,7 +43,7 @@ AIFoundry usa un **agente único genérico** (`ScraperAgent`) que se configura v
                                │
                     ┌──────────▼──────────┐
                     │    ScraperAgent      │  ← agente único genérico
-                    │   (base/agent.py)    │
+                    │ (scraper/agent.py)   │
                     └──────────┬──────────┘
                                │
               ┌────────────────┼────────────────┐
@@ -62,19 +62,22 @@ AIFoundry usa un **agente único genérico** (`ScraperAgent`) que se configura v
 ### Estructura de Archivos
 
 ```
-aifoundry/app/core/agents/
-├── base/
-│   ├── agent.py          # ScraperAgent — agente ReAct genérico
-│   ├── config_schema.py  # Schema Pydantic para validar config.json
-│   ├── prompts.py        # get_system_prompt(config) — prompt dinámico
-│   └── tools.py          # get_local_tools() — simple_scrape_url
-│
-├── salary/
-│   └── config.json       # Config específica de salarios
-├── electricity/
-│   └── config.json       # Config específica de electricidad
-└── social_comments/
-    └── config.json       # Config específica de comentarios sociales
+aifoundry/app/core/aiagents/
+└── scraper/
+    ├── agent.py          # ScraperAgent — agente ReAct genérico
+    ├── config_schema.py  # Schema Pydantic para validar config.json
+    ├── memory.py         # InMemoryManager / NullMemoryManager
+    ├── tool_executor.py  # ToolResolver (MCP + local tools)
+    ├── output_parser.py  # OutputParser (structured + text)
+    ├── prompts.py        # get_system_prompt(config) — prompt dinámico
+    ├── tools.py          # get_local_tools() — simple_scrape_url
+    │
+    ├── salary/
+    │   └── config.json       # Config específica de salarios
+    ├── electricity/
+    │   └── config.json       # Config específica de electricidad
+    └── social_comments/
+        └── config.json       # Config específica de comentarios sociales
 ```
 
 ---
@@ -91,7 +94,7 @@ aifoundry/app/core/agents/
 ### Uso básico
 
 ```python
-from aifoundry.app.core.agents.scraper.agent import ScraperAgent
+from aifoundry.app.core.aiagents.scraper.agent import ScraperAgent
 
 async with ScraperAgent(use_mcp=True) as agent:
     result = await agent.run({
@@ -107,7 +110,7 @@ async with ScraperAgent(use_mcp=True) as agent:
 ### Uso con Structured Output (RECOMENDADO)
 
 ```python
-from aifoundry.app.core.agents.scraper.agent import ScraperAgent
+from aifoundry.app.core.aiagents.scraper.agent import ScraperAgent
 from aifoundry.app.schemas.agent_responses import SalaryResponse
 
 async with ScraperAgent(
@@ -250,11 +253,11 @@ Para añadir un nuevo dominio (ej: `real_estate`):
 ### 1. Crear el config.json
 
 ```bash
-mkdir -p aifoundry/app/core/agents/real_estate
+mkdir -p aifoundry/app/core/aiagents/scraper/real_estate
 ```
 
 ```json
-// aifoundry/app/core/agents/real_estate/config.json
+// aifoundry/app/core/aiagents/scraper/real_estate/config.json
 {
   "product": "real_estate",
   "query_template": "precio alquiler {type} {city} {country_name} {date}",
@@ -295,7 +298,7 @@ curl -X POST http://localhost:8000/api/scrape \
 
 ```python
 # scripts/test_real_estate_agent.py
-from aifoundry.app.core.agents.scraper.agent import ScraperAgent
+from aifoundry.app.core.aiagents.scraper.agent import ScraperAgent
 from aifoundry.app.schemas.agent_responses import RealEstateResponse
 
 async with ScraperAgent(response_model=RealEstateResponse) as agent:
