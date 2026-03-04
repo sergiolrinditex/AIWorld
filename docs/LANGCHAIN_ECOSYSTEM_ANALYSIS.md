@@ -1,171 +1,361 @@
-# Análisis del Ecosistema LangChain vs. Los 4 Paradigmas de AI
+# 🔗 Ecosistema LangChain — Análisis y Decisiones de Arquitectura
 
-> **Fecha**: Marzo 2026  
-> **Objetivo**: Mapear los productos del ecosistema LangChain (LangChain, LangGraph, Deep Agents) a los 4 paradigmas de AI definidos en AIFoundry, y evaluar si encajan o si requieren definir un paradigma nuevo.
+> Análisis del ecosistema LangChain y cómo AIWorld usa sus diferentes capas para construir agentes de IA.
 
----
-
-## 1. Resumen de los productos
-
-### 🔗 LangChain (`langchain.com/langchain`)
-
-**Qué es**: Framework open source con arquitectura de agentes pre-construida e integraciones para cualquier modelo o herramienta.
-
-**Características clave**:
-- `create_agent` proporciona un patrón ReAct probado sobre el runtime de LangGraph
-- **1000+ integraciones** — intercambiar modelos, tools y bases de datos sin reescribir código (no vendor lock-in)
-- Middleware extensible: human-in-the-loop, compresión de conversaciones, eliminación de datos sensibles
-- Runtime durable (persistencia de estado)
-
-**En esencia**: LangChain es la **capa de orquestación y abstracción** — el pegamento que conecta LLMs, tools, retrievers y memoria. No es un paradigma en sí mismo, sino la **librería base** que habilita todos los paradigmas.
+**Versión**: 2.0.0
+**Última actualización**: Abril 2026
 
 ---
 
-### 🕸️ LangGraph (`langchain.com/langgraph`)
+## 📖 Índice
 
-**Qué es**: Runtime de agentes y framework de orquestación de bajo nivel. *"Balance agent control with agency"*.
-
-**Características clave**:
-- **Human-in-the-loop**: Moderación y controles de calidad fáciles de añadir
-- **Workflows expresivos**: Flujos de control personalizables — single agent, multi-agent, jerárquico
-- **Primitivos de bajo nivel**: Flexibilidad total para crear agentes completamente customizados
-- Soporte para grafos de estado con nodos, edges condicionales y checkpoints
-
-**En esencia**: LangGraph es el **motor de ejecución** que permite construir desde un agente simple (AI Agent) hasta sistemas multi-agente complejos (Agentic AI). Es el runtime sobre el que se ejecutan los agentes.
+1. [El Ecosistema LangChain](#el-ecosistema-langchain)
+2. [LangChain vs LangGraph vs deepagents](#langchain-vs-langgraph-vs-deepagents)
+3. [Cómo AIWorld usa cada capa](#cómo-aiworld-usa-cada-capa)
+4. [Decisiones de Arquitectura](#decisiones-de-arquitectura)
+5. [Dependencias y Paquetes](#dependencias-y-paquetes)
+6. [Patrones de Diseño](#patrones-de-diseño)
+7. [Referencias](#referencias)
 
 ---
 
-### 🧠 Deep Agents (`langchain.com/deep-agents`)
+## El Ecosistema LangChain
 
-**Qué es**: Harness open source de agentes construido para **tareas de larga duración**. Maneja planificación, gestión de contexto y orquestación multi-agente para trabajo complejo como investigación y programación.
-
-**Características clave**:
-- **Descomponer objetivos complejos**: Planning tools que permiten descomponer tareas, trackear progreso y adaptarse
-- **Delegar trabajo en paralelo**: Spawn de sub-agentes para subtareas independientes, cada uno con contexto aislado
-- **Filesystem como memoria**: Almacena system prompts, skills y memoria a largo plazo en el filesystem
-- **Gestión nativa de contexto**: Compresión de historial, offload de resultados grandes, aislamiento de contexto entre sub-agentes, prompt caching
-- **Model-neutral**: Cualquier proveedor de LLM, máxima configurabilidad
-- **Arquitectura**: Deep Agents → LangGraph → LangChain → LLM + Tools + Planning Tool + Filesystem Tools + Sub-agents
-
-**En esencia**: Deep Agents es la **implementación más avanzada del paradigma Agentic AI** — agentes autónomos de larga duración que planifican, delegan a sub-agentes y gestionan su propio contexto.
-
----
-
-## 2. Mapeo a los 4 Paradigmas de AI
-
-| Paradigma | Producto(s) | Encaja? | Explicación |
-|-----------|-------------|---------|-------------|
-| **LLM Workflow** | **LangChain** (LCEL chains) | ✅ Sí | LangChain permite crear pipelines/chains simples de LLM: prompt → LLM → output. Ideal para chatbots, generación de texto, resúmenes. |
-| **RAG** | **LangChain** (retrievers + vector stores) | ✅ Sí | LangChain incluye todas las primitivas RAG: Document Loaders, Text Splitters, Embeddings, Vector Stores, Retrievers. Es el ecosistema más maduro para RAG. |
-| **AI Agent** | **LangChain** (`create_agent`) + **LangGraph** (runtime) | ✅ Sí | LangChain expone `create_agent` que proporciona un patrón ReAct probado. Por debajo usa **LangGraph** como runtime durable con grafos de estado, checkpoints y human-in-the-loop. **Es lo que AIFoundry usa hoy.** |
-| **Agentic AI** | **LangGraph** (multi-agent) + **Deep Agents** | ✅ Sí | LangGraph soporta arquitecturas multi-agent y jerárquicas. Deep Agents lleva esto al máximo con sub-agentes autónomos, planificación y memoria a largo plazo. |
-
-### Relación entre productos
-
-> **Importante**: LangChain y LangGraph no son alternativas — son capas complementarias. `create_agent` de LangChain usa LangGraph como runtime por debajo. La diferencia es el nivel de abstracción:
-
-| Nivel | Producto | Para qué |
-|-------|----------|----------|
-| **Alto nivel** | **LangChain** (`create_agent`) | Crear un agente ReAct rápido con configuración mínima |
-| **Bajo nivel** | **LangGraph** (grafos de estado) | Control total: diseñar flujos custom, multi-agent, jerárquicos |
-| **Máxima autonomía** | **Deep Agents** (harness) | Agentes de larga duración con planning, sub-agentes y memoria |
-
-### Diagrama de capas
+LangChain ha evolucionado de un framework monolítico a un **ecosistema modular** de librerías especializadas:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                         Deep Agents                              │
-│            (Agentic AI — tareas largas, sub-agentes)             │
-├─────────────────────────────────────────────────────────────────┤
-│                          LangGraph                               │
-│    (AI Agent + Agentic AI — runtime, grafos, single/multi)       │
-├─────────────────────────────────────────────────────────────────┤
-│                          LangChain                               │
-│       (LLM Workflow + RAG + AI Agent — chains, retrievers, tools)│
-├─────────────────────────────────────────────────────────────────┤
-│                        LLM Provider                              │
-│           (Bedrock, OpenAI, Anthropic via LiteLLM)               │
+│                    Ecosistema LangChain (2026)                   │
+│                                                                  │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────┐  │
+│  │   langchain-core  │  │   langchain       │  │  deepagents  │  │
+│  │                   │  │                   │  │              │  │
+│  │  Abstracciones:   │  │  Framework:       │  │  Batteries-  │  │
+│  │  • Messages       │  │  • create_agent   │  │  included:   │  │
+│  │  • Tools          │  │  • Chains         │  │              │  │
+│  │  • Prompts        │  │  • Retrievers     │  │  • create_   │  │
+│  │  • Chat Models    │  │  • Agents         │  │    deep_     │  │
+│  │  • Runnables      │  │  • Output Parsers │  │    agent()   │  │
+│  └────────┬──────────┘  └────────┬──────────┘  │  • Planning  │  │
+│           │                      │              │  • Subagents │  │
+│           └──────────┬───────────┘              │  • Filesystem│  │
+│                      │                          │  • Memory    │  │
+│            ┌─────────▼──────────┐               └──────┬───────┘  │
+│            │    langgraph       │                       │         │
+│            │                    │◄──────────────────────┘         │
+│            │  Runtime:          │                                  │
+│            │  • State machines  │  ┌──────────────────────────┐   │
+│            │  • Checkpointers   │  │  langchain-mcp-adapters  │   │
+│            │  • Streaming       │  │                          │   │
+│            │  • Memory Store    │  │  MCP ↔ LangChain tools   │   │
+│            └────────────────────┘  └──────────────────────────┘   │
+│                                                                    │
+│  ┌──────────────────┐  ┌──────────────────┐                      │
+│  │ langchain-openai  │  │ langchain-        │                     │
+│  │                   │  │ community         │                     │
+│  │ ChatOpenAI        │  │                   │                     │
+│  │ (LiteLLM proxy)   │  │ Integraciones     │                     │
+│  └──────────────────┘  └──────────────────┘                      │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 3. Conclusión: ¿Paradigma nuevo?
+## LangChain vs LangGraph vs deepagents
 
-**No se necesita un paradigma nuevo.** Los 3 productos del ecosistema LangChain encajan perfectamente dentro de los 4 paradigmas ya definidos:
+### ¿Cuándo usar cada uno?
 
-| Capa del stack | Paradigma(s) que habilita | Producto |
-|----------------|---------------------------|----------|
-| Librería base + alto nivel | LLM Workflow + RAG + AI Agent (`create_agent`) | LangChain |
-| Runtime de agentes (bajo nivel) | AI Agent + Agentic AI (grafos custom, multi-agent) | LangGraph |
-| Harness autónomo | Agentic AI (máxima expresión) | Deep Agents |
+Según la [documentación oficial de LangChain](https://docs.langchain.com/oss/python/langchain/overview):
 
-### Deep Agents ≈ Agentic AI en su máxima expresión
+| Librería | Cuándo usar | Complejidad |
+|----------|------------|-------------|
+| **LangChain** (`create_agent`) | Agentes simples con tools | Baja |
+| **LangGraph** (custom graph) | Workflows custom, control total del flujo | Media-Alta |
+| **deepagents** (`create_deep_agent`) | Agentes complejos, batteries-included | Media (abstraído) |
 
-Deep Agents no introduce un paradigma nuevo — es la **implementación de referencia del paradigma Agentic AI** que ya teníamos definido. Lo que aporta es:
+### LangChain (`langchain`)
 
-1. **Planning nativo** — Los agentes descomponen tareas complejas automáticamente
-2. **Sub-agentes con contexto aislado** — Cada sub-agente tiene su propio contexto, evitando contaminación
-3. **Memoria a largo plazo via filesystem** — Skills y conocimiento persisten entre ejecuciones
-4. **Gestión de contexto** — Compresión, caching y offloading para tareas de larga duración
+> "LangChain is the easy way to start building completely custom agents and applications powered by LLMs."
 
-Esto es exactamente lo que describíamos como *"Sistema multi-agente autónomo — Tareas a gran escala que requieren colaboración"* en nuestra tabla.
+- `create_agent()` → crea un agente ReAct simple con tools
+- Ideal para agentes especializados de una sola tarea
+- **AIWorld lo usa para**: `ScraperAgent`
 
----
+### LangGraph (`langgraph`)
 
-## 4. Impacto en AIFoundry — Roadmap tecnológico
+> "LangGraph is a framework for building agentic and multi-agent applications."
 
-### Hoy: AI Agent con LangGraph ✅
-```
-AIFoundry → LangGraph (ReAct) → LangChain → LiteLLM → Bedrock/Claude
-```
+- Grafos de estado para workflows complejos
+- Checkpointers para persistencia de estado
+- Streaming de eventos
+- **AIWorld lo usa indirectamente**: como runtime de los agentes (tanto ScraperAgent como ChatTeamsAgent)
 
-### Próximo: RAG con LangChain
-```
-AIFoundry → LangChain Retrievers → Vector DB → Documents
-```
+### deepagents (`deepagents`)
 
-### Futuro: Agentic AI con Deep Agents
-```
-AIFoundry → Deep Agents → LangGraph → LangChain → Multi-agent orchestration
-```
+> "deepagents is a standalone library built on top of LangChain's core building blocks. It uses the LangGraph runtime for durable execution, streaming, human-in-the-loop and other features."
 
-### Stack propuesto por paradigma
+Según la [documentación oficial](https://docs.langchain.com/oss/python/deepagents/overview):
 
-| Paradigma | Tecnología propuesta | Estado |
-|-----------|---------------------|--------|
-| **LLM Workflow** | LangChain LCEL chains | 🔲 Pendiente |
-| **RAG** | LangChain + ChromaDB/Pinecone | 🔲 Pendiente |
-| **AI Agent** | LangGraph + ScraperAgent | ✅ Implementado |
-| **Agentic AI** | Deep Agents + LangGraph multi-agent | 🔲 Pendiente |
+- **Agent harness**: mismo loop de tool-calling, pero con herramientas built-in
+- **Planning y task decomposition**: via `write_todos` tool
+- **Context management**: file system tools (`ls`, `read_file`, `write_file`, `edit_file`)
+- **Subagent spawning**: via `task` tool para delegar subtareas
+- **Long-term memory**: via LangGraph's Memory Store
+- **Pluggable filesystem backends**: in-memory, local disk, LangGraph store, sandboxes
+- **AIWorld lo usa para**: `ChatTeamsAgent`
 
 ---
 
-## 5. Ejemplos concretos de evolución
+## Cómo AIWorld usa cada capa
 
-### Ejemplo: De AI Agent a Agentic AI (Salarios)
+### Capa 1: ScraperAgent → LangChain
 
-**Hoy (AI Agent)**:
-```
-Usuario → ScraperAgent → [Brave Search + Playwright] → SalaryResponse
-```
-Un único agente hace toda la investigación.
+```python
+# aifoundry/app/core/aiagents/scraper/agent.py
+from langchain.agents import create_agent
 
-**Futuro (Agentic AI con Deep Agents)**:
+# Agente ReAct simple con tools MCP + locales
+agent = create_agent(
+    model=ChatOpenAI(...),        # langchain-openai → LiteLLM proxy
+    tools=[brave_search, playwright, simple_scrape_url],
+    prompt=system_prompt,
+)
 ```
-Usuario → PlanningAgent
-            ├── ResearchAgent → [Brave Search] → datos brutos de salarios
-            ├── ScrapingAgent → [Playwright] → datos de portales específicos
-            ├── ValidationAgent → [Cross-reference] → verificación de datos
-            └── SynthesisAgent → SalaryResponse (consolidado y verificado)
+
+**¿Por qué LangChain aquí?**
+- El ScraperAgent es un agente **especializado** en una sola tarea (scraping)
+- No necesita planning, subagents ni filesystem
+- ReAct pattern es suficiente: razonar → buscar → extraer → responder
+- `create_agent()` es simple y directo
+
+### Capa 2: ChatTeamsAgent → deepagents
+
+```python
+# aifoundry/app/core/agenticai/deepagents/chat_teams/agent.py
+from deepagents import create_deep_agent
+
+# Deep agent conversacional que orquesta ScraperAgents
+agent = create_deep_agent(
+    tools=[search_electricity, search_salary, search_social_comments, ...mcp_tools],
+    system_prompt=SYSTEM_PROMPT,
+)
 ```
-Múltiples agentes especializados colaborando, cada uno con su contexto aislado.
+
+**¿Por qué deepagents aquí?**
+- El ChatTeamsAgent es un **orquestador** que debe decidir entre múltiples herramientas
+- Necesita mantener contexto de conversación multi-turn
+- Se beneficia de las capacidades built-in: planning, context management, streaming
+- `create_deep_agent()` abstrae la complejidad de LangGraph
+
+### Capa transversal: langchain-mcp-adapters
+
+```python
+# aifoundry/app/core/aiagents/scraper/tool_executor.py
+from langchain_mcp_adapters.client import MultiServerMCPClient
+
+# Conecta MCP servers → LangChain tools
+async with MultiServerMCPClient(mcp_configs) as client:
+    tools = client.get_tools()  # MCP tools como LangChain tools
+```
+
+**¿Por qué langchain-mcp-adapters?**
+- Convierte herramientas MCP (protocolo estándar) en tools LangChain
+- Permite usar MCP servers desde cualquier agente (ScraperAgent o ChatTeamsAgent)
+- Descubrimiento dinámico de herramientas
+
+### Capa de LLM: langchain-openai → LiteLLM
+
+```python
+# aifoundry/app/config.py
+llm = ChatOpenAI(
+    model=settings.litellm_model,
+    base_url=settings.litellm_base_url,  # LiteLLM proxy
+    api_key=settings.litellm_api_key,
+)
+```
+
+**¿Por qué LiteLLM?**
+- Gateway universal a cualquier proveedor de LLM (OpenAI, Anthropic, Azure, etc.)
+- Permite cambiar de modelo sin modificar código
+- Compatible con la interfaz OpenAI que usa `langchain-openai`
+
+---
+
+## Decisiones de Arquitectura
+
+### 1. Dos capas de agentes en vez de una
+
+**Decisión**: Separar en `ScraperAgent` (task-specific) + `ChatTeamsAgent` (orchestrator).
+
+**Motivo**: 
+- **Separación de responsabilidades**: cada ScraperAgent se enfoca en un dominio
+- **Reutilización**: los ScraperAgents se pueden usar directamente via REST API
+- **Escalabilidad**: añadir un nuevo dominio = crear config.json + tool wrapper
+- **Testing**: cada capa se testea independientemente
+
+### 2. deepagents para el orquestador (no LangGraph custom)
+
+**Decisión**: Usar `create_deep_agent()` en vez de construir un grafo LangGraph custom.
+
+**Motivo**:
+- deepagents es el approach recomendado por LangChain para agentes complejos
+- Proporciona planning, subagents, context management out-of-the-box
+- Menos código que mantener vs un grafo LangGraph custom
+- Facilita upgrades futuros (human-in-the-loop, long-term memory, etc.)
+
+### 3. MCP para herramientas externas (no integraciones directas)
+
+**Decisión**: Usar MCP servers (Brave Search, Playwright) en vez de integrar APIs directamente.
+
+**Motivo**:
+- **Estándar**: MCP es un protocolo estándar con amplio soporte
+- **Desacoplamiento**: los MCP servers corren en Docker, independientes del backend
+- **Reutilización**: las herramientas MCP se pueden usar desde cualquier agente
+- **Ecosistema**: hay MCP servers para todo tipo de herramientas (GitHub, Slack, etc.)
+
+### 4. LiteLLM proxy en vez de conexión directa a LLMs
+
+**Decisión**: Todo acceso a LLMs pasa por un proxy LiteLLM.
+
+**Motivo**:
+- **Flexibilidad**: cambiar de modelo/proveedor sin tocar código
+- **Configuración centralizada**: un único punto de configuración (.env)
+- **Compatibilidad**: LiteLLM traduce a la interfaz OpenAI que usa langchain-openai
+- **Corporativo**: permite usar modelos internos de Inditex a través del proxy
+
+### 5. InMemorySaver para checkpoints (por ahora)
+
+**Decisión**: Usar `InMemorySaver` de LangGraph para persistencia de estado.
+
+**Motivo actual**:
+- Simple y funcional para desarrollo y MVP
+- No requiere infraestructura adicional (base de datos)
+
+**Limitación conocida**:
+- Se pierde al reiniciar el servidor
+- No es apto para producción multi-instancia
+
+**Plan futuro**: migrar a LangGraph Store o base de datos persistente.
+
+---
+
+## Dependencias y Paquetes
+
+### Paquetes LangChain en pyproject.toml
+
+```toml
+[project.dependencies]
+deepagents = "..."           # create_deep_agent (batteries-included)
+langchain = "..."            # create_agent, chains, tools
+langgraph = "..."            # Runtime (state, checkpointers, streaming)
+langchain-core = "..."       # Abstracciones base
+langchain-openai = "..."     # ChatOpenAI (LiteLLM compatible)
+langchain-mcp-adapters = "..." # MCP ↔ LangChain bridge
+```
+
+### Relación entre paquetes
+
+```
+deepagents
+├── langchain-core     (abstracciones)
+├── langgraph          (runtime)
+└── langchain          (agents, tools)
+
+langchain
+├── langchain-core     (abstracciones)
+└── langgraph          (runtime opcional)
+
+langchain-openai       (ChatOpenAI)
+└── langchain-core
+
+langchain-mcp-adapters (MCP bridge)
+└── langchain-core
+```
+
+---
+
+## Patrones de Diseño
+
+### 1. Singleton Pattern (ChatTeamsAgent)
+
+```python
+class ChatTeamsAgent:
+    """Singleton con lazy initialization."""
+    _instance = None
+    _agent = None
+
+    async def _ensure_agent(self):
+        if self._agent is None:
+            self._agent = create_deep_agent(...)
+```
+
+**Por qué**: El ChatTeamsAgent mantiene estado (memoria de conversaciones). Una sola instancia evita duplicar memoria y conexiones MCP.
+
+### 2. Config-driven Agents (ScraperAgent)
+
+```python
+# Un único agente parametrizado por config.json
+agent = ScraperAgent("electricity", config=load_config("electricity"))
+agent = ScraperAgent("salary", config=load_config("salary"))
+```
+
+**Por qué**: Permite crear nuevos dominios sin escribir nuevo código de agente.
+
+### 3. Tool Wrapper Pattern
+
+```python
+@tool
+async def search_electricity(query: str, country: str = "ES") -> str:
+    """Wrapper que instancia ScraperAgent y ejecuta."""
+    agent = ScraperAgent("electricity", ...)
+    return str(await agent.run(query=query, country=country))
+```
+
+**Por qué**: Convierte ScraperAgents en tools que el ChatTeamsAgent puede invocar.
+
+### 4. SSE Streaming Pattern
+
+```python
+async def chat(message: str, thread_id: str) -> AsyncIterator[ChatEvent]:
+    async for event in agent.astream_events(..., version="v2"):
+        yield process_event(event)
+```
+
+**Por qué**: Permite respuestas en tiempo real sin esperar a que el agente termine.
+
+### 5. ToolResolver Pattern
+
+```python
+class ToolResolver:
+    """Combina tools locales + MCP tools dinámicamente."""
+    async def get_tools(self):
+        return local_tools + await self._load_mcp_tools()
+```
+
+**Por qué**: Desacopla la carga de herramientas del agente. Permite añadir MCP servers sin modificar el agente.
 
 ---
 
 ## Referencias
 
-- [LangChain](https://www.langchain.com/langchain) — Framework open source con 1000+ integraciones
-- [LangGraph](https://www.langchain.com/langgraph) — Runtime de agentes con orquestación de bajo nivel
-- [Deep Agents](https://www.langchain.com/deep-agents) — Harness de agentes para tareas complejas de larga duración
-- [LangSmith](https://www.langchain.com/langsmith) — Plataforma de observabilidad y deployment
+### Documentación oficial
+
+- [LangChain Overview](https://docs.langchain.com/oss/python/langchain/overview)
+- [Deep Agents Overview](https://docs.langchain.com/oss/python/deepagents/overview)
+- [Deep Agents Quickstart](https://docs.langchain.com/oss/python/deepagents/get-started/quickstart)
+- [LangGraph Documentation](https://langchain-ai.github.io/langgraph/)
+- [Model Context Protocol (MCP)](https://modelcontextprotocol.io/)
+- [langchain-mcp-adapters](https://github.com/langchain-ai/langchain-mcp-adapters)
+
+### Documentación del proyecto
+
+- [README.md](../README.md) — Documentación principal de AIWorld
+- [docs/AGENTS.md](AGENTS.md) — Guía completa de agentes
+- [docs/MCP.md](MCP.md) — Documentación de MCP servers
+- [docs/HEFESTO_DESIGN.md](HEFESTO_DESIGN.md) — Diseño del frontend Hefesto
+
+---
+
+<p align="center">
+  <a href="../README.md">← Volver al README</a> · <a href="HEFESTO_DESIGN.md">← Hefesto</a>
+</p>

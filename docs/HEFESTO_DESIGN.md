@@ -4,7 +4,7 @@
 > Chat-first, powered by Deep Agents (LangChain), streaming SSE.
 
 **Versión**: 2.0.0
-**Fecha**: Marzo 2026
+**Última actualización**: Abril 2026
 **Equipo**: Inditex / PeopleTech / AIWorld
 
 ---
@@ -18,6 +18,7 @@
 5. [Frontend Components](#frontend-components)
 6. [Integración Microsoft Teams](#integración-microsoft-teams)
 7. [Stack Tecnológico](#stack-tecnológico)
+8. [Setup y Desarrollo](#setup-y-desarrollo)
 
 ---
 
@@ -31,334 +32,374 @@
 
 ### ✅ Lo que SÍ es Hefesto
 
-- Un **chat conversacional** estilo Cline/ChatGPT
+- Un **chat conversacional** estilo ChatGPT
 - El usuario escribe en **lenguaje natural**: _"¿Cuánto cobra un dependiente de Zara en España?"_
 - El **ChatTeamsAgent** (Deep Agent) decide qué tools/sub-agentes usar
-- Los resultados se muestran inline con **tool blocks visibles** (transparencia del proceso)
-- **Streaming en tiempo real** vía SSE (Server-Sent Events)
-
-### Flujo de Ejemplo
-
-```
-Usuario: "Dame los precios de electricidad de Endesa en España"
-
-Hefesto:
-  🧠 Thinking: Analizando la consulta... necesito buscar precios de electricidad.
-  🔧 Tool: search_electricity(provider="Endesa", country_code="ES")
-     ├─ 🔍 Brave Search: "precio electricidad Endesa España marzo 2026"
-     ├─ 📄 Scraping: endesa.com/tarifas
-     └─ ✅ Datos extraídos
-
-  📊 Resultado:
-  Las tarifas actuales de Endesa en España son:
-  - Tarifa One Luz: 0.156 €/kWh (fija)
-  - Tarifa Tempo: 0.12-0.19 €/kWh (3 períodos)
-  Fuente: endesa.com (consultado 03/03/2026)
-```
+- Los resultados se muestran **inline en el chat** con Markdown
+- Muestra **thinking blocks** y **tool calls** en tiempo real (streaming)
 
 ---
 
 ## Arquitectura del Sistema
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Microsoft Teams                           │
-│  ┌───────────────────────────────────────────────────────┐  │
-│  │                  Hefesto (React)                       │  │
-│  │  ┌─────────┐  ┌──────────────┐  ┌────────────────┐   │  │
-│  │  │ ChatInput│  │ MessageList  │  │  Sidebar       │   │  │
-│  │  └────┬────┘  │ ├ ChatMessage│  │  ├ Historial   │   │  │
-│  │       │       │ ├ ToolBlock  │  │  ├ Settings    │   │  │
-│  │       │       │ ├ ThinkBlock │  │  └ Info        │   │  │
-│  │       │       │ └ StreamText │  └────────────────┘   │  │
-│  │       │       └──────┬───────┘                        │  │
-│  └───────┼──────────────┼────────────────────────────────┘  │
-│          │     SSE      │                                    │
-└──────────┼──────────────┼────────────────────────────────────┘
-           │              │
-    ┌──────▼──────────────▼──────────────────────────────┐
-    │              FastAPI Backend                         │
-    │  ┌──────────────────────────────────────────────┐   │
-    │  │         POST /api/chat (SSE)                  │   │
-    │  │         GET  /api/chat/history/{id}           │   │
-    │  │         DELETE /api/chat/history/{id}         │   │
-    │  └──────────────────┬───────────────────────────┘   │
-    │                     │                                │
-    │  ┌──────────────────▼───────────────────────────┐   │
-    │  │          ChatTeamsAgent (Deep Agent)           │   │
-    │  │  ┌─────────────────────────────────────────┐  │   │
-    │  │  │ Tools:                                   │  │   │
-    │  │  │  • search_electricity → ScraperAgent     │  │   │
-    │  │  │  • search_salary → ScraperAgent          │  │   │
-    │  │  │  • search_social → ScraperAgent          │  │   │
-    │  │  │  • MCP: Bing, Jira, Confluence, etc.     │  │   │
-    │  │  └─────────────────────────────────────────┘  │   │
-    │  └───────────────────────────────────────────────┘   │
-    └──────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│                 Microsoft Teams                          │
+│                 (Tab App / iframe)                        │
+└──────────────────┬──────────────────────────────────────┘
+                   │
+                   ▼
+┌─────────────────────────────────────────────────────────┐
+│                   HEFESTO                                 │
+│              React + TypeScript + Vite                    │
+│                  Puerto: 5173                             │
+│                                                          │
+│  ┌──────────┐  ┌─────────────┐  ┌────────────────────┐  │
+│  │ App.tsx  │  │ useChat()   │  │ chatService.ts     │  │
+│  │          │──│ hook        │──│ SSE EventSource    │  │
+│  └──────────┘  └─────────────┘  └─────────┬──────────┘  │
+│                                            │             │
+│  ┌──────────┐  ┌─────────────┐  ┌─────────┴──────────┐  │
+│  │ChatInput │  │MessageList  │  │ MessageBubble      │  │
+│  │          │  │             │  │ ThinkingBlock       │  │
+│  │          │  │             │  │ ToolBlock           │  │
+│  └──────────┘  └─────────────┘  └────────────────────┘  │
+└──────────────────┬──────────────────────────────────────┘
+                   │ POST /api/chat (SSE)
+                   ▼
+┌─────────────────────────────────────────────────────────┐
+│                 AIFOUNDRY (Backend)                       │
+│                 FastAPI · Puerto: 8000                    │
+│                                                          │
+│  chat_teams_router.py → ChatTeamsAgent (Deep Agent)      │
+└─────────────────────────────────────────────────────────┘
 ```
-
-### Capas
-
-| Capa | Tecnología | Responsabilidad |
-|------|-----------|-----------------|
-| **Presentación** | React + TypeScript + Vite | UI chat, rendering de mensajes y tool blocks |
-| **Transporte** | SSE (Server-Sent Events) | Streaming bidireccional de eventos |
-| **API** | FastAPI | Endpoints REST + SSE, autenticación |
-| **Orquestación** | ChatTeamsAgent (Deep Agent) | Routing de intenciones, delegación a sub-agentes |
-| **Ejecución** | ScraperAgent (ReAct) | Web scraping con Brave Search + Playwright |
-| **Datos** | MCP Servers | Bing, Fabric, SharePoint, Jira, Confluence |
 
 ---
 
 ## ChatTeamsAgent (Deep Agent)
 
-### ¿Por qué Deep Agent?
+El backend expone un **ChatTeamsAgent** construido con `deepagents.create_deep_agent()` de LangChain. Este agente:
 
-| Característica | ReACT(`create_agent`) | Deep Agent (`deepagents`) |
-|---------------|---------------------|--------------------------|
-| Sub-agent spawning | ❌ Manual | ✅ Nativo |
-| Long-term memory | ❌ Solo checkpoints | ✅ Persistente |
-| Context compression | ❌ | ✅ Automático |
-| Streaming events | ⚠️ Básico | ✅ Rico (thinking, tools, text) |
-| Ideal para | Agentes simples (ScraperAgent) | Agentes conversacionales complejos |
+1. **Recibe** mensajes en lenguaje natural del usuario
+2. **Razona** qué herramientas necesita (Brave Search, ScraperAgents, Playwright)
+3. **Ejecuta** las herramientas necesarias
+4. **Streama** la respuesta token-a-token via SSE
 
-### Estructura de Archivos
+### Tools disponibles
 
-```
-core/agenticai/deepagents/chat_teams/
-├── __init__.py          # Exports públicos
-├── agent.py             # ChatTeamsAgent — Deep Agent principal
-├── config.py            # Configuración del agente
-├── prompts.py           # System prompt de Hefesto
-├── tools.py             # Tools que wrappean ScraperAgents
-├── memory.py            # Configuración de memoria persistente
-└── streaming.py         # Event iterator para SSE
-```
+| Tool | Descripción |
+|------|-------------|
+| `search_electricity` | Busca precios de electricidad (ScraperAgent) |
+| `search_salary` | Busca salarios (ScraperAgent) |
+| `search_social_comments` | Busca comentarios sociales (ScraperAgent) |
+| `list_available_agents` | Lista dominios disponibles |
+| `brave_web_search` | Búsqueda web directa (MCP) |
+| `playwright_*` | Navegación web (MCP) |
 
-### System Prompt (Hefesto)
-
-```
-Eres Hefesto, el asistente de IA de PeopleTech (Inditex).
-Tu misión es ayudar a los equipos de People & Technology a obtener
-información sobre precios de electricidad, salarios y menciones
-en redes sociales.
-
-Cuando el usuario haga una consulta:
-1. Analiza qué tipo de información necesita
-2. Usa las tools disponibles para buscar datos actualizados
-3. Presenta los resultados de forma clara y estructurada
-4. Cita siempre las fuentes con URLs
-
-Tools disponibles:
-- search_electricity: Buscar precios de electricidad por proveedor y país
-- search_salary: Buscar datos salariales por empresa y país
-- search_social: Buscar menciones en redes sociales por persona y red social
-```
-
-### Tools del ChatTeamsAgent
-
-| Tool | Descripción | Parámetros |
-|------|------------|------------|
-| `search_electricity` | Busca precios/tarifas de electricidad | `provider`, `country_code` |
-| `search_salary` | Busca datos salariales del retail/moda | `provider`, `country_code` |
-| `search_social` | Busca menciones en redes sociales | `person_name`, `social_network`, `country_code` |
-
-Cada tool internamente crea un `ScraperAgent`, le pasa el config correspondiente, y devuelve los resultados.
+Ver [docs/AGENTS.md](AGENTS.md) para la documentación completa.
 
 ---
 
 ## API Contract (SSE Streaming)
 
-### `POST /api/chat`
+### Endpoint principal
 
-**Request:**
-```json
+```
+POST /api/chat
+Content-Type: application/json
+Accept: text/event-stream
+
 {
-  "message": "Dame los precios de electricidad de Endesa en España",
-  "thread_id": "optional-uuid"
+  "message": "¿Cuánto cuesta la luz en España?",
+  "thread_id": "optional-session-id"
 }
 ```
 
-**Response:** `text/event-stream` (SSE)
+### Eventos SSE
+
+El servidor emite eventos Server-Sent Events con el siguiente formato:
 
 ```
-event: thinking
-data: {"content": "Analizando la consulta... necesito buscar precios de electricidad."}
-
-event: tool_start
-data: {"tool": "search_electricity", "params": {"provider": "Endesa", "country_code": "ES"}}
-
-event: tool_result
-data: {"tool": "search_electricity", "status": "success", "result": "...datos..."}
-
-event: text
-data: {"content": "Las tarifas actuales de Endesa"}
-
-event: text
-data: {"content": " en España son:\n- Tarifa One Luz..."}
-
-event: done
-data: {"thread_id": "abc-123", "total_steps": 3}
+event: <tipo>
+data: <json>
 ```
 
-### Event Types
+| Evento | Data | Descripción |
+|--------|------|-------------|
+| `thinking` | `{"content": "..."}` | El agente está razonando internamente |
+| `tool_start` | `{"tool": "nombre", "input": {...}}` | Inicio de llamada a herramienta |
+| `tool_end` | `{"tool": "nombre", "output": "..."}` | Resultado de herramienta |
+| `token` | `{"content": "..."}` | Token de respuesta final |
+| `end` | `{"thread_id": "..."}` | Fin del stream |
+| `error` | `{"message": "..."}` | Error durante la ejecución |
 
-| Evento | Descripción | Campos |
-|--------|------------|--------|
-| `thinking` | El agente está razonando | `content` |
-| `tool_start` | Inicio de ejecución de tool | `tool`, `params` |
-| `tool_result` | Resultado de tool | `tool`, `status`, `result` |
-| `text` | Fragmento de texto de respuesta | `content` |
-| `error` | Error durante la ejecución | `message`, `code` |
-| `done` | Fin del stream | `thread_id`, `total_steps` |
+### Endpoints adicionales
 
-### `GET /api/chat/history/{thread_id}`
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| `POST` | `/api/chat/sync` | Chat sincrónico (sin streaming) |
+| `GET` | `/api/chat/history/{thread_id}` | Historial de conversación |
 
-**Response:**
-```json
-{
-  "thread_id": "abc-123",
-  "messages": [
-    {"role": "user", "content": "...", "timestamp": "..."},
-    {"role": "assistant", "content": "...", "timestamp": "...", "tools_used": [...]}
-  ]
-}
+### Ejemplo de flujo SSE
+
 ```
+→ POST /api/chat {"message": "precio luz España"}
 
-### `DELETE /api/chat/history/{thread_id}`
+← event: thinking
+← data: {"content": "Voy a buscar información sobre precios de electricidad..."}
 
-**Response:**
-```json
-{
-  "status": "deleted",
-  "thread_id": "abc-123"
-}
+← event: tool_start
+← data: {"tool": "search_electricity", "input": {"query": "precio luz", "country": "ES"}}
+
+← event: tool_end
+← data: {"tool": "search_electricity", "output": "Datos encontrados: ..."}
+
+← event: token
+← data: {"content": "Según"}
+
+← event: token
+← data: {"content": " los datos"}
+
+← event: token
+← data: {"content": " más recientes..."}
+
+← event: end
+← data: {"thread_id": "abc-123"}
 ```
 
 ---
 
 ## Frontend Components
 
-### Árbol de Componentes
+### Estructura de archivos
 
 ```
-App
-├── AppLayout
-│   ├── Sidebar
-│   │   ├── ConversationList
-│   │   ├── NewChatButton
-│   │   └── AppInfo
-│   └── ChatPanel
-│       ├── ChatHeader
-│       ├── MessageList
-│       │   ├── ChatMessage (role=user)
-│       │   └── ChatMessage (role=assistant)
-│       │       ├── ThinkingBlock
-│       │       ├── ToolBlock
-│       │       │   ├── ToolHeader (nombre + estado)
-│       │       │   ├── ToolParams (parámetros colapsables)
-│       │       │   └── ToolResult (resultado colapsable)
-│       │       └── StreamingText
-│       └── ChatInput
-│           ├── TextArea (auto-resize)
-│           └── SendButton
+hefesto/src/
+├── App.tsx                    # Layout principal (header + chat area)
+├── main.tsx                   # Entry point React (Teams init)
+├── index.css                  # Estilos globales (Tailwind-like)
+│
+├── hooks/
+│   └── useChat.ts             # Hook principal: SSE, state, messages
+│
+├── services/
+│   └── chatService.ts         # Conexión SSE con el backend
+│
+├── types/
+│   └── chat.ts                # Tipos TypeScript (ChatMessage, ChatEvent, etc.)
+│
+├── components/
+│   ├── ChatInput.tsx           # Input de texto + botón enviar
+│   ├── MessageList.tsx         # Lista scrollable de mensajes
+│   ├── MessageBubble.tsx       # Burbuja individual (user/assistant)
+│   ├── ThinkingBlock.tsx       # Bloque de "pensamiento" del agente
+│   └── ToolBlock.tsx           # Bloque de tool call (expandible)
+│
+└── lib/
+    └── teams.ts                # Wrapper Microsoft Teams SDK
 ```
 
-### Componentes Clave
+### `useChat()` — Hook principal
 
-#### `ChatMessage`
-- Renderiza mensajes de usuario y asistente
-- Para mensajes del asistente, parsea y renderiza tool blocks inline
-- Soporte para Markdown en las respuestas
+El hook `useChat` es el corazón de la comunicación frontend-backend:
 
-#### `ToolBlock` (estilo Cline)
-- **Header**: Icono + nombre del tool + estado (running/success/error)
-- **Params**: Parámetros enviados (colapsable, mostrado por defecto)
-- **Result**: Resultado obtenido (colapsable, mostrado al completar)
-- **Estados visuales**: 
-  - 🔄 Running: spinner + borde azul
-  - ✅ Success: check + borde verde
-  - ❌ Error: x + borde rojo
+```typescript
+const {
+  messages,          // ChatMessage[]
+  isLoading,         // boolean
+  sendMessage,       // (text: string) => void
+  threadId,          // string
+} = useChat();
+```
 
-#### `ThinkingBlock`
-- Fondo suave (gris/lavanda)
-- Colapsable (expandido por defecto durante streaming)
-- Icono de cerebro 🧠
+Internamente:
+1. `sendMessage()` → llama a `chatService.sendChatMessage()`
+2. `chatService` → abre una conexión SSE (`EventSource`)
+3. Los eventos se procesan y actualizan `messages` en real-time
+4. Los `thinking` events → `ThinkingBlock`
+5. Los `tool_start/tool_end` events → `ToolBlock`
+6. Los `token` events → se acumulan en el `MessageBubble` del assistant
 
-#### `StreamingText`
-- Texto que aparece progresivamente (caracter a caracter o token a token)
-- Cursor parpadeante al final durante streaming
-- Renderizado Markdown completo al finalizar
+### `App.tsx` — Layout principal
 
-#### `ChatInput`
-- TextArea con auto-resize
-- Enviar con Enter (Shift+Enter para nueva línea)
-- Botón de enviar deshabilitado durante streaming
-- Placeholder: _"Pregunta a Hefesto..."_
+```
+┌─────────────────────────────────────┐
+│         Header (AIWorld)             │
+├─────────────────────────────────────┤
+│                                      │
+│         MessageList                  │
+│  ┌───────────────────────────────┐  │
+│  │ User: "precio luz España"     │  │
+│  ├───────────────────────────────┤  │
+│  │ 🤔 ThinkingBlock             │  │
+│  │ "Voy a buscar..."            │  │
+│  ├───────────────────────────────┤  │
+│  │ 🔧 ToolBlock                 │  │
+│  │ search_electricity(...)       │  │
+│  ├───────────────────────────────┤  │
+│  │ Assistant: "Los precios..."   │  │
+│  └───────────────────────────────┘  │
+│                                      │
+├─────────────────────────────────────┤
+│         ChatInput                    │
+│  [Escribe tu mensaje...] [Enviar]   │
+└─────────────────────────────────────┘
+```
+
+### `MessageBubble` — Renderizado de mensajes
+
+- Soporta **Markdown** via `react-markdown` + `remark-gfm`
+- Diferencia visualmente mensajes de `user` vs `assistant`
+- Muestra `ThinkingBlock` y `ToolBlock` inline
+
+### `ThinkingBlock` — Bloques de pensamiento
+
+Muestra el razonamiento interno del agente en un bloque colapsable/expandible con estilo diferenciado.
+
+### `ToolBlock` — Llamadas a herramientas
+
+Muestra las llamadas a tools del agente (nombre de la tool, input, output) en un formato expandible que permite ver los detalles.
 
 ---
 
 ## Integración Microsoft Teams
 
-### Teams Tab App
+### Configuración
+
+Hefesto se despliega como una **Tab App** dentro de Microsoft Teams:
+
+- **SDK**: `@microsoft/teams-js` v2.49+
+- **Init**: `teams.ts` → `app.initialize()` en `main.tsx`
+- **Manifest**: `hefesto/teams-manifest/manifest.json`
+
+### Flujo de inicialización
+
+```typescript
+// hefesto/src/lib/teams.ts
+import { app } from "@microsoft/teams-js";
+
+export async function initializeTeams(): Promise<boolean> {
+  try {
+    await app.initialize();
+    return true;
+  } catch {
+    // No estamos en Teams, modo standalone
+    return false;
+  }
+}
+```
+
+```typescript
+// hefesto/src/main.tsx
+initializeTeams().then(() => {
+  createRoot(document.getElementById("root")!).render(<App />);
+});
+```
+
+### Manifest (Teams App)
 
 ```json
+// hefesto/teams-manifest/manifest.json
 {
-  "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.17/MicrosoftTeams.schema.json",
-  "manifestVersion": "1.17",
-  "id": "hefesto-peopletech",
-  "name": { "short": "Hefesto", "full": "Hefesto - PeopleTech AI Assistant" },
-  "description": {
-    "short": "AI assistant for PeopleTech",
-    "full": "Chat with Hefesto to find electricity prices, salaries, and social mentions"
-  },
+  "$schema": "...",
+  "manifestVersion": "1.19",
+  "id": "...",
+  "name": { "short": "AIWorld" },
   "staticTabs": [{
-    "entityId": "hefesto-chat",
-    "name": "Chat",
-    "contentUrl": "https://{host}/hefesto",
+    "entityId": "hefesto",
+    "name": "AIWorld Chat",
+    "contentUrl": "https://your-domain/hefesto",
     "scopes": ["personal"]
   }]
 }
 ```
 
-### Teams SDK Integration
+### Modo dual
 
-- `@microsoft/teams-js` para detección de contexto Teams
-- Adaptación automática de tema (light/dark/high-contrast)
-- SSO via `authentication.getAuthToken()` (futuro)
-- Funciona también standalone fuera de Teams (modo desarrollo)
+Hefesto funciona tanto **dentro de Teams** como **standalone** en el navegador:
+- Si `app.initialize()` tiene éxito → modo Teams (con Teams context)
+- Si falla → modo standalone (funciona igual, sin Teams SDK features)
 
 ---
 
 ## Stack Tecnológico
 
-### Backend
+| Tecnología | Versión | Uso |
+|-----------|---------|-----|
+| **React** | 19.x | UI framework |
+| **TypeScript** | 5.9 | Tipado estático |
+| **Vite** | 7.x | Build tool y dev server |
+| **@microsoft/teams-js** | 2.49+ | Integración Microsoft Teams |
+| **react-markdown** | 10.x | Renderizado de Markdown en mensajes |
+| **remark-gfm** | 4.x | Soporte para tablas, links, etc. en Markdown |
+| **lucide-react** | latest | Iconos |
 
-| Librería | Versión | Uso |
-|----------|---------|-----|
-| FastAPI | ≥0.115 | API REST + SSE |
-| LangChain | ≥0.3.25 | Framework base |
-| LangGraph | ≥0.4.1 | Orquestación de agentes |
-| deepagents | latest | Deep Agent (`create_deep_agent`) para ChatTeamsAgent |
-| langchain-openai | ≥0.3.18 | Azure OpenAI LLM |
-| langchain-mcp-adapters | ≥0.1.2 | Conexión a MCP servers |
+### Configuración Vite
 
-### Frontend
+```typescript
+// hefesto/vite.config.ts
+export default defineConfig({
+  plugins: [react()],
+  envDir: '..',          // Lee .env desde la raíz del monorepo
+  server: {
+    port: 5173,
+    proxy: {
+      '/api': 'http://localhost:8000',  // Proxy al backend
+    },
+  },
+});
+```
 
-| Librería | Uso |
-|----------|-----|
-| React 18 | UI framework |
-| TypeScript | Type safety |
-| Vite | Build tool |
-| @microsoft/teams-js | Teams SDK |
-| react-markdown | Rendering Markdown |
-| remark-gfm | GitHub Flavored Markdown |
-| lucide-react | Iconos |
+El proxy en Vite redirige todas las peticiones `/api/*` al backend FastAPI en puerto 8000, evitando problemas de CORS en desarrollo.
 
-### Comunicación
+---
 
-| Protocolo | Uso |
-|-----------|-----|
-| SSE (Server-Sent Events) | Streaming de eventos del agente al frontend |
-| REST (JSON) | Historial, health check |
-| MCP (Model Context Protocol) | Backend ↔ Tool servers |
+## Setup y Desarrollo
+
+### Prerrequisitos
+
+- Node.js ≥ 18
+- npm o pnpm
+
+### Instalación
+
+```bash
+cd hefesto
+npm install
+```
+
+### Desarrollo
+
+```bash
+npm run dev
+# Hefesto arranca en http://localhost:5173
+```
+
+### Build para producción
+
+```bash
+npm run build
+# Output en hefesto/dist/
+```
+
+### Variables de entorno
+
+```bash
+# hefesto/.env.example
+VITE_API_BASE_URL=http://localhost:8000  # URL del backend
+```
+
+> **Nota**: Vite lee `.env` desde `envDir: '..'` (raíz del monorepo). Las variables para el frontend deben tener prefijo `VITE_`.
+
+### Linting
+
+```bash
+npm run lint
+```
+
+---
+
+<p align="center">
+  <a href="../README.md">← Volver al README</a> · <a href="MCP.md">← MCP Servers</a> · <a href="LANGCHAIN_ECOSYSTEM_ANALYSIS.md">Ecosistema LangChain →</a>
+</p>
