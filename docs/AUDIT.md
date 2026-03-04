@@ -3,7 +3,8 @@
 > **Fecha**: 3 de abril de 2026  
 > **Auditor**: AI Audit Agent  
 > **Versión del proyecto**: commit `69498cb`  
-> **Fuentes de referencia**: Documentación oficial de LangChain, deepagents, LangGraph, langchain-mcp-adapters, FastAPI, FastMCP
+> **Fuentes de referencia**: Documentación oficial de LangChain, deepagents, LangGraph, langchain-mcp-adapters, FastAPI, FastMCP  
+> **Método de verificación**: Consultas en tiempo real via MCP `SearchDocsByLangChain` + lectura completa de todos los archivos fuente
 
 ---
 
@@ -11,7 +12,7 @@
 
 | Categoría | Estado | Hallazgos |
 |-----------|--------|-----------|
-| **deepagents (create_deep_agent)** | ⚠️ Ajuste necesario | `checkpointer=` no está en la API pública documentada |
+| **deepagents (create_deep_agent)** | ✅ Correcto | Todos los parámetros documentados oficialmente |
 | **LangChain (create_agent)** | ✅ Correcto | Uso conforme a la API oficial |
 | **langchain-mcp-adapters** | ✅ Correcto | `MultiServerMCPClient` bien configurado |
 | **LangGraph (InMemorySaver)** | ✅ Correcto | Checkpointer y `thread_id` bien implementados |
@@ -21,7 +22,7 @@
 | **Dependencias (pyproject.toml)** | ✅ Consistente | Paquetes alineados con el código |
 | **Tests** | ✅ Buena cobertura | 14 unit tests + 1 integration test |
 
-**Resultado global: ✅ APROBADO con 1 observación menor**
+**Resultado global: ✅ APROBADO — 0 errores críticos**
 
 ---
 
@@ -63,17 +64,24 @@ create_deep_agent(
 | `tools` | ✅ Lista de `BaseTool` | ✅ `Sequence[BaseTool \| ...]` | ✅ Correcto |
 | `system_prompt` | ✅ `str` | ✅ `str \| SystemMessage` | ✅ Correcto |
 | `name` | ✅ `"hefesto-chat-teams"` | ✅ `str \| None` | ✅ Correcto |
-| `checkpointer` | ⚠️ `InMemorySaver` | ❌ **No listado** | ⚠️ Ver nota |
+| `checkpointer` | ✅ `InMemorySaver` | ✅ **Documentado** | ✅ Correcto |
 
-#### ⚠️ Observación: `checkpointer=`
+#### ✅ `checkpointer=` confirmado en documentación oficial
 
-La documentación pública de `create_deep_agent` **no lista `checkpointer`** como parámetro. Sin embargo:
+La [página de Customization de deepagents](https://docs.langchain.com/oss/python/deepagents/customization) documenta explícitamente `checkpointer=` como parámetro válido:
 
-1. Deep agents devuelven un `CompiledStateGraph` (LangGraph), que **sí soporta checkpointer**.
-2. La librería `deepagents` está construida sobre LangGraph, y es probable que `create_deep_agent` acepte `**kwargs` adicionales que se pasan al `CompiledStateGraph` subyacente.
-3. El código funciona correctamente en ejecución (probado con `InMemorySaver`).
+```python
+from deepagents import create_deep_agent
+from langgraph.checkpoint.memory import MemorySaver
 
-**Recomendación**: El código es funcionalmente correcto. Si en una futura versión de `deepagents` se restringe la firma, habría que usar el mecanismo de memoria built-in de deep agents (AGENTS.md memory). Por ahora no requiere cambios.
+checkpointer = MemorySaver()
+
+agent = create_deep_agent(
+    checkpointer=checkpointer,  # Required for human-in-the-loop
+)
+```
+
+El uso en el proyecto es conforme a la documentación oficial.
 
 #### ✅ Patrón `astream_events(version="v2")`
 
@@ -348,10 +356,9 @@ aifoundry/
 9. **Thread-safe singleton**: `get_chat_agent()` con patrón module-level
 10. **Callback handlers**: Logging estructurado del flujo del agente
 
-### ⚠️ Observaciones menores
+### ⚠️ Observación menor
 
-1. **`checkpointer=` en `create_deep_agent`**: No documentado pero funcional. Monitorear en futuras versiones de deepagents.
-2. **Singleton no thread-safe**: `get_chat_agent()` usa un global sin lock. En FastAPI con uvicorn workers > 1, cada worker tendría su propia instancia (que es el comportamiento deseado con `InMemorySaver`, pero vale la pena documentar).
+1. **Singleton no thread-safe**: `get_chat_agent()` usa un global sin lock. En FastAPI con uvicorn workers > 1, cada worker tendría su propia instancia (que es el comportamiento deseado con `InMemorySaver`, pero vale la pena documentar).
 
 ---
 
@@ -377,12 +384,11 @@ aifoundry/
 | 14 | Test coverage | 14 unit + 1 integration |
 | 15 | Project structure | Modular, clara, bien organizada |
 
-### ⚠️ Observaciones (2)
+### ⚠️ Observaciones (1)
 
 | # | Severidad | Componente | Detalle | Acción |
 |---|-----------|-----------|---------|--------|
-| 1 | Baja | `create_deep_agent` | `checkpointer=` no en API pública | Monitorear en futuras versiones |
-| 2 | Info | Singleton | `get_chat_agent()` sin threading lock | Documentar comportamiento multi-worker |
+| 1 | Info | Singleton | `get_chat_agent()` sin threading lock | Documentar comportamiento multi-worker |
 
 ### ❌ Errores críticos
 
@@ -394,7 +400,7 @@ aifoundry/
 
 El proyecto AIWorld presenta una implementación **sólida y bien arquitectada** que sigue las mejores prácticas y APIs oficiales de todo el ecosistema:
 
-- **deepagents**: Uso correcto de `create_deep_agent()` con los 4 parámetros documentados, más `checkpointer` que funciona gracias al backend LangGraph.
+- **deepagents**: Uso correcto de `create_deep_agent()` con todos los parámetros documentados oficialmente, incluyendo `checkpointer` (confirmado en docs de Customization).
 - **LangChain**: `create_agent()` usado con todos los parámetros correctos incluyendo `response_format` para structured output nativo.
 - **langchain-mcp-adapters**: `MultiServerMCPClient` configurado correctamente con `streamable_http` transport.
 - **FastAPI**: Patrones modernos (lifespan, SSE streaming, Pydantic schemas).
