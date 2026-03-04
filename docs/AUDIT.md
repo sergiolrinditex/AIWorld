@@ -36,7 +36,7 @@
 | 7 | **Actualizados** tests | `test_chat_teams_agent.py` | Adaptados a nueva estructura con `ToolResolver` |
 | 8 | **Actualizado** frontend | `hefesto/src/services/chatService.ts` | URLs actualizadas a `/api/chat_teams` |
 
-**259/259 tests pasando** tras todos los cambios.
+**278/278 tests pasando** tras todos los cambios (última verificación: 3 Abril 2026, 11:39 CEST).
 
 ---
 
@@ -420,7 +420,7 @@ aifoundry/
 │   │   │   └── deepagents/
 │   │   │       └── chat_teams/          # Deep Agent (orquestador)
 │   │   │           ├── agent.py         # create_deep_agent
-│   │   │           ├── tool_executor.py # ToolResolver (MCP + local)
+│   │   │           ├── tool_executor.py # MultiServerMCPClient + ToolResolver (MCP + local)
 │   │   │           ├── tools.py         # @tool wrappers
 │   │   │           ├── prompts.py       # System prompt
 │   │   │           ├── config.py        # ChatTeamsConfig
@@ -429,7 +429,7 @@ aifoundry/
 │   │   └── aiagents/
 │   │       └── scraper/                 # ReAct Agent (scraping)
 │   │           ├── agent.py             # create_agent
-│   │           ├── tool_executor.py     # MultiServerMCPClient
+│   │           ├── tool_executor.py     # MultiServerMCPClient + ToolResolver (MCP + local)
 │   │           ├── tools.py             # @tool simple_scrape_url
 │   │           ├── prompts.py           # Dynamic prompts from config
 │   │           ├── config_schema.py     # Pydantic config schemas
