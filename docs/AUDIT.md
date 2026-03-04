@@ -420,6 +420,7 @@ aifoundry/
 │   │   │   └── deepagents/
 │   │   │       └── chat_teams/          # Deep Agent (orquestador)
 │   │   │           ├── agent.py         # create_deep_agent
+│   │   │           ├── tool_executor.py # ToolResolver (MCP + local)
 │   │   │           ├── tools.py         # @tool wrappers
 │   │   │           ├── prompts.py       # System prompt
 │   │   │           ├── config.py        # ChatTeamsConfig
