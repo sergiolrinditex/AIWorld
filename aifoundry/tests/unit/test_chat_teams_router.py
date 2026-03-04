@@ -1,5 +1,5 @@
 """
-Tests unitarios para chat_teams_router (endpoints /chat).
+Tests unitarios para chat_teams_router (endpoints /api/chat_teams).
 
 Usa mocks del ChatTeamsAgent — no requiere LLM ni MCP reales.
 """
@@ -28,11 +28,11 @@ def client():
 
 
 class TestChatStreamEndpoint:
-    """Tests para POST /chat."""
+    """Tests para POST /api/chat_teams."""
 
     @patch("aifoundry.app.api.chat_teams_router.get_chat_agent")
     def test_chat_returns_sse(self, mock_get_agent, client):
-        """POST /api/chat debe retornar SSE stream."""
+        """POST /api/chat_teams debe retornar SSE stream."""
         mock_agent = MagicMock()
 
         async def fake_chat(message, thread_id):
@@ -44,7 +44,7 @@ class TestChatStreamEndpoint:
         mock_get_agent.return_value = mock_agent
 
         response = client.post(
-            "/chat",
+            "/api/chat_teams",
             json={"message": "Hola", "thread_id": "test-sse"},
         )
 
@@ -77,24 +77,24 @@ class TestChatStreamEndpoint:
         mock_get_agent.return_value = mock_agent
 
         response = client.post(
-            "/chat",
+            "/api/chat_teams",
             json={"message": "Hola"},
         )
 
         assert response.status_code == 200
 
     def test_chat_requires_message(self, client):
-        """POST /chat sin message debe dar 422."""
-        response = client.post("/chat", json={})
+        """POST /api/chat_teams sin message debe dar 422."""
+        response = client.post("/api/chat_teams", json={})
         assert response.status_code == 422
 
 
 class TestChatSyncEndpoint:
-    """Tests para POST /chat/sync."""
+    """Tests para POST /api/chat_teams/sync."""
 
     @patch("aifoundry.app.api.chat_teams_router.get_chat_agent")
     def test_sync_returns_json(self, mock_get_agent, client):
-        """POST /api/chat/sync debe retornar JSON con response."""
+        """POST /api/chat_teams/sync debe retornar JSON con response."""
         mock_agent = MagicMock()
         mock_agent.chat_sync = AsyncMock(
             return_value={
@@ -106,7 +106,7 @@ class TestChatSyncEndpoint:
         mock_get_agent.return_value = mock_agent
 
         response = client.post(
-            "/chat/sync",
+            "/api/chat_teams/sync",
             json={"message": "Hola", "thread_id": "sync-123"},
         )
 
@@ -118,13 +118,13 @@ class TestChatSyncEndpoint:
 
     @patch("aifoundry.app.api.chat_teams_router.get_chat_agent")
     def test_sync_handles_error(self, mock_get_agent, client):
-        """POST /api/chat/sync con error del agente debe dar 500."""
+        """POST /api/chat_teams/sync con error del agente debe dar 500."""
         mock_agent = MagicMock()
         mock_agent.chat_sync = AsyncMock(side_effect=RuntimeError("Agent crash"))
         mock_get_agent.return_value = mock_agent
 
         response = client.post(
-            "/chat/sync",
+            "/api/chat_teams/sync",
             json={"message": "Provoca error"},
         )
 
@@ -132,11 +132,11 @@ class TestChatSyncEndpoint:
 
 
 class TestHistoryEndpoint:
-    """Tests para GET /chat/history/{thread_id}."""
+    """Tests para GET /api/chat_teams/history/{thread_id}."""
 
     @patch("aifoundry.app.api.chat_teams_router.get_chat_agent")
     def test_get_history(self, mock_get_agent, client):
-        """GET /api/chat/history debe retornar mensajes."""
+        """GET /api/chat_teams/history debe retornar mensajes."""
         mock_agent = MagicMock()
         mock_agent.get_history = AsyncMock(
             return_value=[
@@ -146,7 +146,7 @@ class TestHistoryEndpoint:
         )
         mock_get_agent.return_value = mock_agent
 
-        response = client.get("/chat/history/test-thread")
+        response = client.get("/api/chat_teams/history/test-thread")
 
         assert response.status_code == 200
         data = response.json()
@@ -156,12 +156,12 @@ class TestHistoryEndpoint:
 
     @patch("aifoundry.app.api.chat_teams_router.get_chat_agent")
     def test_get_empty_history(self, mock_get_agent, client):
-        """GET /api/chat/history con thread vacío retorna lista vacía."""
+        """GET /api/chat_teams/history con thread vacío retorna lista vacía."""
         mock_agent = MagicMock()
         mock_agent.get_history = AsyncMock(return_value=[])
         mock_get_agent.return_value = mock_agent
 
-        response = client.get("/chat/history/empty-thread")
+        response = client.get("/api/chat_teams/history/empty-thread")
 
         assert response.status_code == 200
         data = response.json()
@@ -170,11 +170,11 @@ class TestHistoryEndpoint:
 
 
 class TestDeleteHistoryEndpoint:
-    """Tests para DELETE /chat/history/{thread_id}."""
+    """Tests para DELETE /api/chat_teams/history/{thread_id}."""
 
     def test_delete_history(self, client):
-        """DELETE /api/chat/history debe retornar ok."""
-        response = client.delete("/chat/history/some-thread")
+        """DELETE /api/chat_teams/history debe retornar ok."""
+        response = client.delete("/api/chat_teams/history/some-thread")
 
         assert response.status_code == 200
         data = response.json()

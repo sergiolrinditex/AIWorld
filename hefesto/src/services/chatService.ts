@@ -13,7 +13,7 @@ export async function* streamChat(
   message: string,
   threadId?: string | null
 ): AsyncGenerator<ChatEvent> {
-  const response = await fetch(`${API_BASE}/chat`, {
+  const response = await fetch(`${API_BASE}/chat_teams`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -68,14 +68,14 @@ export async function* streamChat(
 
 /** Obtiene el historial de un thread */
 export async function getHistory(threadId: string) {
-  const res = await fetch(`${API_BASE}/chat/history/${threadId}`);
+  const res = await fetch(`${API_BASE}/chat_teams/history/${threadId}`);
   if (!res.ok) throw new Error(`History request failed: ${res.status}`);
   return res.json();
 }
 
 /** Borra el historial de un thread */
 export async function deleteHistory(threadId: string) {
-  const res = await fetch(`${API_BASE}/chat/history/${threadId}`, { method: "DELETE" });
+  const res = await fetch(`${API_BASE}/chat_teams/history/${threadId}`, { method: "DELETE" });
   if (!res.ok) throw new Error(`Delete request failed: ${res.status}`);
   return res.json();
 }

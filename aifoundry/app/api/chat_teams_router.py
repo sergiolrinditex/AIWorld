@@ -1,9 +1,9 @@
 """
 Chat API Router — Endpoints SSE para el ChatTeamsAgent (Hefesto).
 
-POST /chat          → StreamingResponse SSE
-GET  /chat/history  → Historial de conversación
-DELETE /chat/history → Limpiar historial
+POST /api/chat_teams          → StreamingResponse SSE
+GET  /api/chat_teams/history  → Historial de conversación
+DELETE /api/chat_teams/history → Limpiar historial
 """
 
 import logging
@@ -18,7 +18,7 @@ from aifoundry.app.core.agenticai.deepagents.chat_teams.agent import get_chat_ag
 
 logger = logging.getLogger(__name__)
 
-chat_teams_router = APIRouter(prefix="/chat", tags=["chat-teams"])
+chat_teams_router = APIRouter(prefix="/api/chat_teams", tags=["chat-teams"])
 
 
 # ─── Request / Response schemas ───────────────────────────────────────────────

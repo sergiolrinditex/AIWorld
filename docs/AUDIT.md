@@ -31,11 +31,12 @@
 | 2 | **Refactorizado** `tools.py` | `chat_teams/tools.py` | Movida lógica MCP a `tool_executor.py`, solo definiciones `@tool` |
 | 3 | **Actualizado** `agent.py` | `chat_teams/agent.py` | Usa `ToolResolver` para cargar tools MCP + locales |
 | 4 | **Corregido** `_AGENTS_DIR` | `api/router.py` | Ruta corregida de `core/agents` → `core/aiagents/scraper` (el directorio no existía) |
-| 5 | **Corregido** router prefix | `main.py` | Eliminado `prefix="/api"` de `include_router()` — los routers ya definen sus propios prefijos |
-| 6 | **Actualizados** tests | `test_chat_teams_router.py` | URLs corregidas de `/api/chat/...` → `/chat/...` para coincidir con los routers |
+| 5 | **Corregido** router prefix | `main.py` + `chat_teams_router.py` | Router prefix unificado a `/api/chat_teams` (antes `/chat` con prefix `/api` en main.py) |
+| 6 | **Actualizados** tests | `test_chat_teams_router.py` | URLs corregidas a `/api/chat_teams/...` para coincidir con los routers |
 | 7 | **Actualizados** tests | `test_chat_teams_agent.py` | Adaptados a nueva estructura con `ToolResolver` |
+| 8 | **Actualizado** frontend | `hefesto/src/services/chatService.ts` | URLs actualizadas a `/api/chat_teams` |
 
-**278/278 tests pasando** tras todos los cambios.
+**259/259 tests pasando** tras todos los cambios.
 
 ---
 
