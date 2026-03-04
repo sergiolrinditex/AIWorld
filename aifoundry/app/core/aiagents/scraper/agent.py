@@ -430,9 +430,15 @@ class ScraperAgent:
         """
         Construye el config dict para `agent.ainvoke()`.
 
-        Incluye callbacks y, si hay memoria, el thread_id estable.
+        Incluye callbacks, recursion_limit y, si hay memoria, el thread_id estable.
+        El recursion_limit se sube a 100 (default LangGraph es 25) porque los
+        ScraperAgents ejecutan múltiples pasos: análisis → búsqueda → scraping →
+        extracción → validación, y cada paso puede requerir varias tool calls.
         """
-        run_config: dict = {"callbacks": self._callbacks}
+        run_config: dict = {
+            "callbacks": self._callbacks,
+            "recursion_limit": 100,
+        }
 
         if self._use_memory:
             run_config["configurable"] = {"thread_id": self._thread_id}

@@ -12,6 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from aifoundry.app.config import settings
+from aifoundry.app.api.chat_teams_router import chat_teams_router
 from aifoundry.app.api.router import router as api_router
 
 
@@ -75,8 +76,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Register API router
-app.include_router(api_router)
+# Register API routers
+app.include_router(api_router, prefix="/api")
+app.include_router(chat_teams_router, prefix="/api")
 
 
 # ==============================================================================

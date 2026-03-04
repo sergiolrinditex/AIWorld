@@ -38,6 +38,9 @@ dependencies = [
     "langchain-mcp-adapters",
     "fastmcp",
     
+    # Deep Agents (langchain-ai/deepagents)
+    "deepagents",
+    
     # Validation & Settings
     "pydantic",
     "pydantic-settings",

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.17/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.17",
+  "version": "1.0.0",
+  "id": "{{TEAMS_APP_ID}}",
+  "developer": {
+    "name": "Inditex PeopleTech",
+    "websiteUrl": "https://www.inditex.com",
+    "privacyUrl": "https://www.inditex.com/privacy",
+    "termsOfUseUrl": "https://www.inditex.com/terms"
+  },
+  "name": {
+    "short": "Hefesto",
+    "full": "Hefesto — PeopleTech AI Assistant"
+  },
+  "description": {
+    "short": "AI assistant for electricity, salary & social data research",
+    "full": "Hefesto is a conversational AI assistant powered by Deep Agents that helps PeopleTech teams research electricity prices, salary benchmarks, and social media mentions across multiple countries and providers."
+  },
+  "icons": {
+    "outline": "outline.png",
+    "color": "color.png"
+  },
+  "accentColor": "#0078D4",
+  "staticTabs": [
+    {
+      "entityId": "hefesto-chat",
+      "name": "Hefesto Chat",
+      "contentUrl": "{{HEFESTO_URL}}",
+      "scopes": ["personal"]
+    }
+  ],
+  "permissions": ["identity", "messageTeamMembers"],
+  "validDomains": ["{{HEFESTO_DOMAIN}}", "*.inditex.com"]
+}
