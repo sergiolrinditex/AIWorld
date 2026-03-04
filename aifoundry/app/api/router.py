@@ -43,7 +43,7 @@ router = APIRouter()
 # =============================================================================
 
 # Ruta base donde están los agentes (cada subdirectorio con config.json)
-_AGENTS_DIR = Path(__file__).resolve().parent.parent / "core" / "agents"
+_AGENTS_DIR = Path(__file__).resolve().parent.parent / "core" / "aiagents" / "scraper"
 
 # Meses en español (para query_template)
 _MESES_ES = {

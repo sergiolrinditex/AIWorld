@@ -25,14 +25,17 @@
 
 ### Cambios Realizados Durante la Auditoría
 
-| Cambio | Archivo | Detalle |
-|--------|---------|---------|
-| **Nuevo** `tool_executor.py` | `chat_teams/tool_executor.py` | `ToolResolver` para MCP tools (patrón idéntico al de scraper) |
-| **Refactorizado** `tools.py` | `chat_teams/tools.py` | Movida lógica MCP a `tool_executor.py`, solo definiciones `@tool` |
-| **Actualizado** `agent.py` | `chat_teams/agent.py` | Usa `ToolResolver` para cargar tools MCP + locales |
-| **Actualizados** tests | `test_chat_teams_agent.py` | Adaptados a nueva estructura con `ToolResolver` |
+| # | Cambio | Archivo | Detalle |
+|---|--------|---------|---------|
+| 1 | **Nuevo** `tool_executor.py` | `chat_teams/tool_executor.py` | `ToolResolver` para MCP tools (patrón idéntico al de scraper) |
+| 2 | **Refactorizado** `tools.py` | `chat_teams/tools.py` | Movida lógica MCP a `tool_executor.py`, solo definiciones `@tool` |
+| 3 | **Actualizado** `agent.py` | `chat_teams/agent.py` | Usa `ToolResolver` para cargar tools MCP + locales |
+| 4 | **Corregido** `_AGENTS_DIR` | `api/router.py` | Ruta corregida de `core/agents` → `core/aiagents/scraper` (el directorio no existía) |
+| 5 | **Corregido** router prefix | `main.py` | Eliminado `prefix="/api"` de `include_router()` — los routers ya definen sus propios prefijos |
+| 6 | **Actualizados** tests | `test_chat_teams_router.py` | URLs corregidas de `/api/chat/...` → `/chat/...` para coincidir con los routers |
+| 7 | **Actualizados** tests | `test_chat_teams_agent.py` | Adaptados a nueva estructura con `ToolResolver` |
 
-**259/259 tests pasando** tras los cambios.
+**278/278 tests pasando** tras todos los cambios.
 
 ---
 

@@ -28,7 +28,7 @@ def client():
 
 
 class TestChatStreamEndpoint:
-    """Tests para POST /api/chat."""
+    """Tests para POST /chat."""
 
     @patch("aifoundry.app.api.chat_teams_router.get_chat_agent")
     def test_chat_returns_sse(self, mock_get_agent, client):
@@ -44,7 +44,7 @@ class TestChatStreamEndpoint:
         mock_get_agent.return_value = mock_agent
 
         response = client.post(
-            "/api/chat",
+            "/chat",
             json={"message": "Hola", "thread_id": "test-sse"},
         )
 
@@ -77,20 +77,20 @@ class TestChatStreamEndpoint:
         mock_get_agent.return_value = mock_agent
 
         response = client.post(
-            "/api/chat",
+            "/chat",
             json={"message": "Hola"},
         )
 
         assert response.status_code == 200
 
     def test_chat_requires_message(self, client):
-        """POST /api/chat sin message debe dar 422."""
-        response = client.post("/api/chat", json={})
+        """POST /chat sin message debe dar 422."""
+        response = client.post("/chat", json={})
         assert response.status_code == 422
 
 
 class TestChatSyncEndpoint:
-    """Tests para POST /api/chat/sync."""
+    """Tests para POST /chat/sync."""
 
     @patch("aifoundry.app.api.chat_teams_router.get_chat_agent")
     def test_sync_returns_json(self, mock_get_agent, client):
@@ -106,7 +106,7 @@ class TestChatSyncEndpoint:
         mock_get_agent.return_value = mock_agent
 
         response = client.post(
-            "/api/chat/sync",
+            "/chat/sync",
             json={"message": "Hola", "thread_id": "sync-123"},
         )
 
@@ -124,7 +124,7 @@ class TestChatSyncEndpoint:
         mock_get_agent.return_value = mock_agent
 
         response = client.post(
-            "/api/chat/sync",
+            "/chat/sync",
             json={"message": "Provoca error"},
         )
 
@@ -132,7 +132,7 @@ class TestChatSyncEndpoint:
 
 
 class TestHistoryEndpoint:
-    """Tests para GET /api/chat/history/{thread_id}."""
+    """Tests para GET /chat/history/{thread_id}."""
 
     @patch("aifoundry.app.api.chat_teams_router.get_chat_agent")
     def test_get_history(self, mock_get_agent, client):
@@ -146,7 +146,7 @@ class TestHistoryEndpoint:
         )
         mock_get_agent.return_value = mock_agent
 
-        response = client.get("/api/chat/history/test-thread")
+        response = client.get("/chat/history/test-thread")
 
         assert response.status_code == 200
         data = response.json()
@@ -161,7 +161,7 @@ class TestHistoryEndpoint:
         mock_agent.get_history = AsyncMock(return_value=[])
         mock_get_agent.return_value = mock_agent
 
-        response = client.get("/api/chat/history/empty-thread")
+        response = client.get("/chat/history/empty-thread")
 
         assert response.status_code == 200
         data = response.json()
@@ -170,11 +170,11 @@ class TestHistoryEndpoint:
 
 
 class TestDeleteHistoryEndpoint:
-    """Tests para DELETE /api/chat/history/{thread_id}."""
+    """Tests para DELETE /chat/history/{thread_id}."""
 
     def test_delete_history(self, client):
         """DELETE /api/chat/history debe retornar ok."""
-        response = client.delete("/api/chat/history/some-thread")
+        response = client.delete("/chat/history/some-thread")
 
         assert response.status_code == 200
         data = response.json()

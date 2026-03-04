@@ -77,8 +77,8 @@ app.add_middleware(
 )
 
 # Register API routers
-app.include_router(api_router, prefix="/api")
-app.include_router(chat_teams_router, prefix="/api")
+app.include_router(api_router)
+app.include_router(chat_teams_router)
 
 
 # ==============================================================================
