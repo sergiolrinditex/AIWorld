@@ -34,7 +34,7 @@ from aifoundry.app.core.agenticai.deepagents.chat_teams.streaming import (
     tool_result_event,
     tool_start_event,
 )
-from aifoundry.app.core.agenticai.deepagents.chat_teams.tools import get_all_tools, get_chat_teams_tools
+from aifoundry.app.core.agenticai.deepagents.chat_teams.tool_executor import ToolResolver
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +76,7 @@ class ChatTeamsAgent:
 
     def __init__(self):
         self._agent = None
-        self._mcp_client = None
+        self._tool_resolver: Optional[ToolResolver] = None
         self._system_prompt = None
 
     async def _ensure_agent(self):
@@ -84,9 +84,9 @@ class ChatTeamsAgent:
         if self._agent is not None:
             return
 
-        # Cargar tools locales + MCP (Brave Search, Playwright)
-        tools, mcp_client = await get_all_tools()
-        self._mcp_client = mcp_client
+        # Cargar tools locales + MCP via ToolResolver (mismo patrón que ScraperAgent)
+        self._tool_resolver = ToolResolver()
+        tools = await self._tool_resolver.resolve_tools()
 
         # LLM via LiteLLM proxy (compatible con ChatOpenAI)
         llm = ChatOpenAI(
@@ -113,25 +113,16 @@ class ChatTeamsAgent:
             name="hefesto-chat-teams",
         )
 
-        local_count = len(get_chat_teams_tools())
-        mcp_count = len(tools) - local_count
         logger.info(
             f"ChatTeamsAgent initialized with deepagents.create_deep_agent: "
-            f"{len(tools)} tools ({local_count} local + {mcp_count} MCP), "
-            f"model={settings.litellm_model}"
+            f"{len(tools)} tools, model={settings.litellm_model}"
         )
 
     async def cleanup(self):
-        """Limpia recursos (MCP client). Mismo patrón que ScraperAgent ToolResolver."""
-        if self._mcp_client:
-            try:
-                if hasattr(self._mcp_client, "close"):
-                    await self._mcp_client.close()
-                logger.info("MCP client cleaned up")
-            except Exception as e:
-                logger.warning(f"MCP cleanup error: {e}")
-            finally:
-                self._mcp_client = None
+        """Limpia recursos (MCP client via ToolResolver). Mismo patrón que ScraperAgent."""
+        if self._tool_resolver:
+            await self._tool_resolver.cleanup()
+            self._tool_resolver = None
 
     async def chat(
         self,

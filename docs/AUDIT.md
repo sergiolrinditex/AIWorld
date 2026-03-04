@@ -23,6 +23,17 @@
 
 **Resultado global: ✅ APROBADO — El proyecto sigue las mejores prácticas y APIs correctas de todas las librerías.**
 
+### Cambios Realizados Durante la Auditoría
+
+| Cambio | Archivo | Detalle |
+|--------|---------|---------|
+| **Nuevo** `tool_executor.py` | `chat_teams/tool_executor.py` | `ToolResolver` para MCP tools (patrón idéntico al de scraper) |
+| **Refactorizado** `tools.py` | `chat_teams/tools.py` | Movida lógica MCP a `tool_executor.py`, solo definiciones `@tool` |
+| **Actualizado** `agent.py` | `chat_teams/agent.py` | Usa `ToolResolver` para cargar tools MCP + locales |
+| **Actualizados** tests | `test_chat_teams_agent.py` | Adaptados a nueva estructura con `ToolResolver` |
+
+**259/259 tests pasando** tras los cambios.
+
 ---
 
 ## 1. deepagents — `create_deep_agent()`

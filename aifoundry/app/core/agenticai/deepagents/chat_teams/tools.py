@@ -13,10 +13,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from langchain_core.tools import BaseTool, tool
-from langchain_mcp_adapters.client import MultiServerMCPClient
+from langchain_core.tools import tool
 
-from aifoundry.app.config import settings
 from aifoundry.app.core.aiagents.scraper.agent import ScraperAgent
 
 logger = logging.getLogger(__name__)
@@ -56,8 +54,7 @@ def _add_date_context(query: str) -> str:
     return f"{query} (fecha actual: {date_str}, {date_iso})"
 
 
-# Timeout para conexiones MCP y ejecución de ScraperAgents (segundos)
-_MCP_CONNECT_TIMEOUT = 15
+# Timeout para ejecución de ScraperAgents (segundos)
 _SCRAPER_TIMEOUT = 120
 
 
@@ -286,69 +283,15 @@ async def list_available_agents() -> str:
 
 
 def get_chat_teams_tools() -> list:
-    """Retorna las tools locales (síncronas) para el ChatTeamsAgent."""
+    """
+    Retorna las tools locales para el ChatTeamsAgent.
+
+    Solo definiciones de tools — la resolución MCP se hace en tool_executor.py
+    (mismo patrón que aiagents/scraper con tools.py + tool_executor.py).
+    """
     return [
         search_electricity,
         search_salary,
         search_social_comments,
         list_available_agents,
     ]
-
-
-async def load_mcp_tools() -> tuple[list[BaseTool], Optional[MultiServerMCPClient]]:
-    """
-    Carga tools MCP directas (Brave Search, Playwright) para queries ad-hoc.
-
-    Usa el mismo patrón que el ScraperAgent (ToolResolver):
-    - get_mcp_configs() obtiene la config de cada MCP module
-    - MultiServerMCPClient(configs) → await client.get_tools()
-    - Cleanup con await client.close()
-
-    Incluye timeout de _MCP_CONNECT_TIMEOUT segundos para no colgarse
-    si los MCPs no son accesibles (ej: Rancher sin port-forward activo).
-
-    Returns:
-        Tuple de (lista de tools MCP, cliente MCP inicializado o None)
-    """
-    try:
-        from aifoundry.app.core.aiagents.scraper.tool_executor import get_mcp_configs
-
-        mcp_configs = get_mcp_configs()
-        client = MultiServerMCPClient(mcp_configs)
-
-        # Timeout para evitar colgarse si MCPs no están accesibles
-        mcp_tools = await asyncio.wait_for(
-            client.get_tools(),
-            timeout=_MCP_CONNECT_TIMEOUT,
-        )
-
-        logger.info(f"Loaded {len(mcp_tools)} MCP tools for ad-hoc queries: {[t.name for t in mcp_tools]}")
-        return mcp_tools, client
-    except asyncio.TimeoutError:
-        logger.warning(
-            f"MCP connection timed out after {_MCP_CONNECT_TIMEOUT}s. "
-            f"MCPs not reachable — agent will work with local tools only. "
-            f"Check docker-compose up or Rancher port-forward."
-        )
-        return [], None
-    except Exception as e:
-        logger.warning(f"Failed to load MCP tools (agent will work without ad-hoc tools): {e}")
-        return [], None
-
-
-async def get_all_tools() -> tuple[list, Optional[MultiServerMCPClient]]:
-    """
-    Obtiene TODAS las tools: locales (ScraperAgent wrappers) + MCP directas.
-
-    Returns:
-        Tuple de (lista de tools, cliente MCP o None)
-    """
-    local_tools = get_chat_teams_tools()
-    mcp_tools, mcp_client = await load_mcp_tools()
-
-    all_tools = local_tools + (mcp_tools if mcp_tools else [])
-    logger.info(
-        f"ChatTeamsAgent tools: {len(local_tools)} local + "
-        f"{len(mcp_tools) if mcp_tools else 0} MCP = {len(all_tools)} total"
-    )
-    return all_tools, mcp_client

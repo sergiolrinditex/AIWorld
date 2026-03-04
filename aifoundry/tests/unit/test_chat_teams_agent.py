@@ -165,12 +165,12 @@ class TestTools:
             _load_domain_config("nonexistent_domain")
 
     @pytest.mark.asyncio
-    async def test_load_mcp_tools_timeout(self):
-        """load_mcp_tools debe retornar vacío si MCP connection se cuelga (timeout)."""
+    async def test_tool_resolver_mcp_timeout(self):
+        """ToolResolver.resolve_tools() debe retornar solo tools locales si MCP se cuelga (timeout)."""
         import asyncio
 
-        import aifoundry.app.core.agenticai.deepagents.chat_teams.tools as tools_mod
-        from aifoundry.app.core.agenticai.deepagents.chat_teams.tools import load_mcp_tools
+        import aifoundry.app.core.agenticai.deepagents.chat_teams.tool_executor as te_mod
+        from aifoundry.app.core.agenticai.deepagents.chat_teams.tool_executor import ToolResolver
 
         # Simular MCP que se cuelga
         mock_client = MagicMock()
@@ -181,23 +181,26 @@ class TestTools:
         mock_client.get_tools = hanging_get_tools
 
         # Guardamos el timeout original
-        original_timeout = tools_mod._MCP_CONNECT_TIMEOUT
+        original_timeout = te_mod._MCP_CONNECT_TIMEOUT
 
         with patch(
-            "aifoundry.app.core.aiagents.scraper.tool_executor.get_mcp_configs",
+            "aifoundry.app.core.agenticai.deepagents.chat_teams.tool_executor.get_mcp_configs",
             return_value={"brave": {"transport": "streamable_http", "url": "http://fake"}},
         ), patch(
-            "aifoundry.app.core.agenticai.deepagents.chat_teams.tools.MultiServerMCPClient",
+            "aifoundry.app.core.agenticai.deepagents.chat_teams.tool_executor.MultiServerMCPClient",
             return_value=mock_client,
         ):
-            tools_mod._MCP_CONNECT_TIMEOUT = 0.1  # 100ms timeout para test rápido
+            te_mod._MCP_CONNECT_TIMEOUT = 0.1  # 100ms timeout para test rápido
             try:
-                tools, client = await load_mcp_tools()
+                resolver = ToolResolver(use_mcp=True)
+                tools = await resolver.resolve_tools()
             finally:
-                tools_mod._MCP_CONNECT_TIMEOUT = original_timeout
+                te_mod._MCP_CONNECT_TIMEOUT = original_timeout
 
-        assert tools == []
-        assert client is None
+        # Debe retornar solo las tools locales (4 tools)
+        assert len(tools) == 4
+        names = [t.name for t in tools]
+        assert "search_electricity" in names
 
     @pytest.mark.asyncio
     async def test_run_scraper_timeout(self):
@@ -254,6 +257,7 @@ class TestTools:
     def test_add_date_context_contains_current_year(self):
         """La fecha añadida contiene el año actual."""
         import datetime
+
         from aifoundry.app.core.agenticai.deepagents.chat_teams.tools import _add_date_context
 
         result = _add_date_context("precio luz")
@@ -328,7 +332,55 @@ class TestChatTeamsConfig:
         assert chat_teams_config.max_tokens > 0
 
 
+# ─── Tests de tool_executor.py ────────────────────────────────────────────────
+
+
+class TestToolResolver:
+    """Tests para ToolResolver del ChatTeamsAgent."""
+
+    @pytest.mark.asyncio
+    async def test_resolve_tools_local_only(self):
+        """ToolResolver sin MCP debe retornar solo tools locales."""
+        from aifoundry.app.core.agenticai.deepagents.chat_teams.tool_executor import ToolResolver
+
+        resolver = ToolResolver(use_mcp=False)
+        tools = await resolver.resolve_tools()
+        assert len(tools) == 4
+        names = [t.name for t in tools]
+        assert "search_electricity" in names
+        assert "list_available_agents" in names
+
+    @pytest.mark.asyncio
+    async def test_resolve_tools_custom(self):
+        """ToolResolver con custom_tools debe retornar esas tools."""
+        from aifoundry.app.core.agenticai.deepagents.chat_teams.tool_executor import ToolResolver
+
+        mock_tool = MagicMock()
+        mock_tool.name = "custom_tool"
+        resolver = ToolResolver(use_mcp=False, custom_tools=[mock_tool])
+        tools = await resolver.resolve_tools()
+        assert len(tools) == 1
+        assert tools[0].name == "custom_tool"
+
+    @pytest.mark.asyncio
+    async def test_cleanup_without_init(self):
+        """cleanup() sin haber resuelto tools no debe fallar."""
+        from aifoundry.app.core.agenticai.deepagents.chat_teams.tool_executor import ToolResolver
+
+        resolver = ToolResolver()
+        await resolver.cleanup()  # No debe lanzar excepción
+
+
 # ─── Tests del ChatTeamsAgent (mockeado) ──────────────────────────────────────
+
+
+def _mock_tool_resolver():
+    """Helper: crea un mock de ToolResolver para tests del ChatTeamsAgent."""
+    mock_resolver_instance = MagicMock()
+    mock_resolver_instance.resolve_tools = AsyncMock(return_value=[])
+    mock_resolver_instance.cleanup = AsyncMock()
+    mock_resolver_cls = MagicMock(return_value=mock_resolver_instance)
+    return mock_resolver_cls, mock_resolver_instance
 
 
 class TestChatTeamsAgent:
@@ -336,17 +388,21 @@ class TestChatTeamsAgent:
 
     @pytest.mark.asyncio
     @patch("aifoundry.app.core.agenticai.deepagents.chat_teams.agent.create_deep_agent")
-    @patch("aifoundry.app.core.agenticai.deepagents.chat_teams.agent.get_all_tools")
+    @patch("aifoundry.app.core.agenticai.deepagents.chat_teams.agent.ToolResolver")
     @patch("aifoundry.app.core.agenticai.deepagents.chat_teams.agent.ChatOpenAI")
-    async def test_chat_yields_events(self, mock_llm_cls, mock_get_tools, mock_create_agent):
+    async def test_chat_yields_events(self, mock_llm_cls, mock_resolver_cls, mock_create_agent):
         """chat() debe emitir al menos thinking + text/done events."""
         from aifoundry.app.core.agenticai.deepagents.chat_teams.agent import ChatTeamsAgent
 
-        # Mock tools
-        mock_get_tools.return_value = ([], None)
+        # Mock ToolResolver
+        mock_resolver = MagicMock()
+        mock_resolver.resolve_tools = AsyncMock(return_value=[])
+        mock_resolver.cleanup = AsyncMock()
+        mock_resolver_cls.return_value = mock_resolver
+
         mock_llm_cls.return_value = MagicMock()
 
-        # Mock react agent astream_events
+        # Mock deep agent astream_events
         mock_agent = MagicMock()
 
         async def fake_stream(*args, **kwargs):
@@ -370,13 +426,17 @@ class TestChatTeamsAgent:
 
     @pytest.mark.asyncio
     @patch("aifoundry.app.core.agenticai.deepagents.chat_teams.agent.create_deep_agent")
-    @patch("aifoundry.app.core.agenticai.deepagents.chat_teams.agent.get_all_tools")
+    @patch("aifoundry.app.core.agenticai.deepagents.chat_teams.agent.ToolResolver")
     @patch("aifoundry.app.core.agenticai.deepagents.chat_teams.agent.ChatOpenAI")
-    async def test_chat_handles_error(self, mock_llm_cls, mock_get_tools, mock_create_agent):
+    async def test_chat_handles_error(self, mock_llm_cls, mock_resolver_cls, mock_create_agent):
         """chat() debe emitir error_event si el agente falla."""
         from aifoundry.app.core.agenticai.deepagents.chat_teams.agent import ChatTeamsAgent
 
-        mock_get_tools.return_value = ([], None)
+        mock_resolver = MagicMock()
+        mock_resolver.resolve_tools = AsyncMock(return_value=[])
+        mock_resolver.cleanup = AsyncMock()
+        mock_resolver_cls.return_value = mock_resolver
+
         mock_llm_cls.return_value = MagicMock()
 
         mock_agent = MagicMock()
@@ -398,13 +458,17 @@ class TestChatTeamsAgent:
 
     @pytest.mark.asyncio
     @patch("aifoundry.app.core.agenticai.deepagents.chat_teams.agent.create_deep_agent")
-    @patch("aifoundry.app.core.agenticai.deepagents.chat_teams.agent.get_all_tools")
+    @patch("aifoundry.app.core.agenticai.deepagents.chat_teams.agent.ToolResolver")
     @patch("aifoundry.app.core.agenticai.deepagents.chat_teams.agent.ChatOpenAI")
-    async def test_chat_tool_events(self, mock_llm_cls, mock_get_tools, mock_create_agent):
+    async def test_chat_tool_events(self, mock_llm_cls, mock_resolver_cls, mock_create_agent):
         """chat() debe emitir tool_start y tool_result para invocaciones de tools."""
         from aifoundry.app.core.agenticai.deepagents.chat_teams.agent import ChatTeamsAgent
 
-        mock_get_tools.return_value = ([], None)
+        mock_resolver = MagicMock()
+        mock_resolver.resolve_tools = AsyncMock(return_value=[])
+        mock_resolver.cleanup = AsyncMock()
+        mock_resolver_cls.return_value = mock_resolver
+
         mock_llm_cls.return_value = MagicMock()
 
         mock_agent = MagicMock()
@@ -440,15 +504,19 @@ class TestChatTeamsAgent:
 
     @pytest.mark.asyncio
     @patch("aifoundry.app.core.agenticai.deepagents.chat_teams.agent.create_deep_agent")
-    @patch("aifoundry.app.core.agenticai.deepagents.chat_teams.agent.get_all_tools")
+    @patch("aifoundry.app.core.agenticai.deepagents.chat_teams.agent.ToolResolver")
     @patch("aifoundry.app.core.agenticai.deepagents.chat_teams.agent.ChatOpenAI")
-    async def test_chat_sync_returns_dict(self, mock_llm_cls, mock_get_tools, mock_create_agent):
+    async def test_chat_sync_returns_dict(self, mock_llm_cls, mock_resolver_cls, mock_create_agent):
         """chat_sync() debe retornar dict con response, thread_id, tools_used."""
         from langchain_core.messages import AIMessage
 
         from aifoundry.app.core.agenticai.deepagents.chat_teams.agent import ChatTeamsAgent
 
-        mock_get_tools.return_value = ([], None)
+        mock_resolver = MagicMock()
+        mock_resolver.resolve_tools = AsyncMock(return_value=[])
+        mock_resolver.cleanup = AsyncMock()
+        mock_resolver_cls.return_value = mock_resolver
+
         mock_llm_cls.return_value = MagicMock()
 
         mock_agent = MagicMock()
@@ -470,15 +538,19 @@ class TestChatTeamsAgent:
 
     @pytest.mark.asyncio
     @patch("aifoundry.app.core.agenticai.deepagents.chat_teams.agent.create_deep_agent")
-    @patch("aifoundry.app.core.agenticai.deepagents.chat_teams.agent.get_all_tools")
+    @patch("aifoundry.app.core.agenticai.deepagents.chat_teams.agent.ToolResolver")
     @patch("aifoundry.app.core.agenticai.deepagents.chat_teams.agent.ChatOpenAI")
-    async def test_get_history_returns_list(self, mock_llm_cls, mock_get_tools, mock_create_agent):
+    async def test_get_history_returns_list(self, mock_llm_cls, mock_resolver_cls, mock_create_agent):
         """get_history() debe retornar lista de mensajes."""
         from langchain_core.messages import AIMessage, HumanMessage
 
         from aifoundry.app.core.agenticai.deepagents.chat_teams.agent import ChatTeamsAgent
 
-        mock_get_tools.return_value = ([], None)
+        mock_resolver = MagicMock()
+        mock_resolver.resolve_tools = AsyncMock(return_value=[])
+        mock_resolver.cleanup = AsyncMock()
+        mock_resolver_cls.return_value = mock_resolver
+
         mock_llm_cls.return_value = MagicMock()
 
         mock_state = MagicMock()
@@ -519,23 +591,24 @@ class TestChatTeamsAgent:
 
     @pytest.mark.asyncio
     @patch("aifoundry.app.core.agenticai.deepagents.chat_teams.agent.create_deep_agent")
-    @patch("aifoundry.app.core.agenticai.deepagents.chat_teams.agent.get_all_tools")
+    @patch("aifoundry.app.core.agenticai.deepagents.chat_teams.agent.ToolResolver")
     @patch("aifoundry.app.core.agenticai.deepagents.chat_teams.agent.ChatOpenAI")
-    async def test_cleanup_mcp_client(self, mock_llm_cls, mock_get_tools, mock_create_agent):
-        """cleanup() debe cerrar el MCP client si existe (usa client.close() como ScraperAgent)."""
+    async def test_cleanup_tool_resolver(self, mock_llm_cls, mock_resolver_cls, mock_create_agent):
+        """cleanup() debe llamar a ToolResolver.cleanup() y resetear el resolver."""
         from aifoundry.app.core.agenticai.deepagents.chat_teams.agent import ChatTeamsAgent
 
-        mock_mcp = MagicMock()
-        mock_mcp.close = AsyncMock()
+        mock_resolver = MagicMock()
+        mock_resolver.resolve_tools = AsyncMock(return_value=[])
+        mock_resolver.cleanup = AsyncMock()
+        mock_resolver_cls.return_value = mock_resolver
 
-        mock_get_tools.return_value = ([], mock_mcp)
         mock_llm_cls.return_value = MagicMock()
         mock_create_agent.return_value = MagicMock()
 
         agent = ChatTeamsAgent()
         await agent._ensure_agent()
 
-        assert agent._mcp_client is mock_mcp
+        assert agent._tool_resolver is mock_resolver
         await agent.cleanup()
-        mock_mcp.close.assert_called_once()
-        assert agent._mcp_client is None
+        mock_resolver.cleanup.assert_called_once()
+        assert agent._tool_resolver is None
